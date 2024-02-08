@@ -26,7 +26,7 @@ def parse_csv(
         0.0008,0.13845624891109765,0.0008,0.053397190757095814
     <<<
     4 columns where
-    columns 0 and 2 are time (s (I think))
+    columns 0 and 2 are time (s?)
     column  1 is the signal from the camera (V)
     column  3 is the signal from pinch detector (V)
     """
@@ -39,13 +39,11 @@ def parse_csv(
     )
 
     # check that time columns are synchronized
-    col_t1 = df.columns[0]
-    col_t2 = df.columns[2]
-    if (df[col_t1] != df[col_t2]).any():
+    if (df[columns[0]] != df[columns[2]]).any():
         raise ValueError("Time is not synchronized between devices.")
     
     # return DataFrame sans duplicate time column
-    return df.drop("time_chk", axis=1)
+    return df.drop(columns[2], axis=1)
 
 def process_data(df):
     """Process DataFrame.
