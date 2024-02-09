@@ -26,9 +26,9 @@ def parse_csv(
         0.0008,0.13845624891109765,0.0008,0.053397190757095814
     <<<
     4 columns where
-    columns 0 and 2 are time (s (I think))
+    columns 0 and 2 are time (s)
     column  1 is the signal from the camera (V)
-    column  3 is the signal from pinch detector (V)
+    column  3 is the signal from stimulus detector (V)
     """
 
     # read csv
@@ -39,25 +39,24 @@ def parse_csv(
     )
 
     # check that time columns are synchronized
-    col_t1 = df.columns[0]
-    col_t2 = df.columns[2]
-    if (df[col_t1] != df[col_t2]).any():
+    if (df[columns[0]] != df[columns[2]]).any():
         raise ValueError("Time is not synchronized between devices.")
     
     # return DataFrame sans duplicate time column
-    return df.drop("time_chk", axis=1)
+    return df.drop(columns[2], axis=1)
+
 
 def process_data(df):
     """Process DataFrame.
 
-    Returns a processed DataFrame with columns for frame number and pinch status
-        frame # | pinch
-        ------- | -----
-              0 | False
-              1 | False
-            ... | ...
-             37 | True
-             38 | True
+    Returns a processed DataFrame with columns for frame number,
+    stimulated status, and frame rate.
+        frame | stimulated | time | frametime | framerate
+        ----- | ---------- | ---- | --------- | ---------
+            1 |      False | 2.88 |    0.0565 | 17.699115
+            2 |      False | 2.93 |    0.0565 | 17.699115
+            3 |      False | 2.99 |    0.0565 | 17.699115
+            4 |      False | 3.04 |    0.0565 | 17.699115
     """
 
     # estimate threshold for camera on/off signal based on voltage distribution
@@ -72,16 +71,15 @@ def process_data(df):
     else:
         raise ValueError("Unable to determine threshold for camera on/off signal.")
 
-    # do the same for pinch on/off signal
-    hist, bin_edges = np.histogram(df["pinch_raw"], bins=3, density=True)
+    # do the same for stimulus on/off signal
+    hist, bin_edges = np.histogram(df["stimulus_raw"], bins=3, density=True)
     if hist[1] < 1e-4:
-        df["pinch"] = df["pinch_raw"] > bin_edges[1]
+        df["stimulated"] = df["stimulus_raw"] > bin_edges[1]
     else:
-        raise ValueError("Unable to determine threshold for pinch on/off signal.")
+        raise ValueError("Unable to determine threshold for stimulus on/off signal.")
 
     # get frame count from cumulative sum of positive changes to camera signal
     # basically frame count is incremented each time the camera switches back on
-    # not the cleanest chain... but seems to work perty good
     df["frame"] = df["camera"]\
         .astype(int)\
         .diff()\
@@ -90,8 +88,27 @@ def process_data(df):
         .cumsum()\
         .astype(int)
 
-    # return processed DataFrame
-    return df.loc[:, ["frame", "pinch"]].drop_duplicates()
+    # create new DataFrame where each row marks the start of a new frame
+    df_frames = df.loc[
+        df["frame"].diff().fillna(0) > 0,
+        ["frame", "stimulated", "time"]
+    ]
+    # calculate frame time and frame rate
+    df_frames["frametime"] = df_frames["time"]\
+        .diff()\
+        .shift(-1)\
+        .fillna(-1)\
+        .round(7)
+    df_frames["framerate"] = (1 / df_frames["frametime"]).round(7)
+
+    return df_frames
+    
+    # #
+    # df_frames = df.loc[:, ["frame", "stimulated"]].drop_duplicates()
+    # df_frames["framerate"] = df_frames.index.diff()
+
+    # # return processed DataFrame
+    # return df_frames
 
 
 if __name__ == "__main__":
@@ -111,7 +128,7 @@ if __name__ == "__main__":
         "time",
         "camera_raw",
         "time_chk",
-        "pinch_raw"
+        "stimulus_raw"
     ]
     skiprows = 4
 
