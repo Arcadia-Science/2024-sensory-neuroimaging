@@ -103,13 +103,6 @@ def process_data(df):
 
     return df_frames
     
-    # #
-    # df_frames = df.loc[:, ["frame", "stimulated"]].drop_duplicates()
-    # df_frames["framerate"] = df_frames.index.diff()
-
-    # # return processed DataFrame
-    # return df_frames
-
 
 if __name__ == "__main__":
 
