@@ -8,7 +8,7 @@ def parse_csv(
     columns=None,
     row_channels=3,
     skiprows=4,
-    ):
+):
     """Parse csv file output by NI DAQ.
 
     csv file output by experiment looks something like
@@ -68,7 +68,11 @@ def parse_csv(
     return df.rename({df.columns[0]: "time"}, axis=1)
 
 
-def process_data(df):
+def process_data(
+    df,
+    col_camera="camera",
+    col_stim="stim"
+):
     """Process DataFrame.
 
     Returns a processed DataFrame with columns for frame number,
@@ -86,23 +90,23 @@ def process_data(df):
     # | by taking a histogram we therefore expect a rather dense bin of
     # | low values, an almost empty bin of mid-range values, and a rather
     # | dense bin of high values. threshold is set at the edge of the lowest
-    # | bin as long as middle bin is nearly empty (contains < 0.01% of values)
-    hist, bin_edges = np.histogram(df["camera_raw"], bins=3, density=True)
-    if hist[1] < 1e-4:
-        df["camera"] = df["camera_raw"] > bin_edges[1]
+    # | bin as long as middle bin is the least populated.
+    hist, bin_edges = np.histogram(df.loc[:, col_camera], bins=3, density=True)
+    if hist.min() == hist[1]:
+        df["camera_BOOL"] = df.loc[:, col_camera] > bin_edges[1]
     else:
         raise ValueError("Unable to determine threshold for camera on/off signal.")
 
     # do the same for stimulus on/off signal
-    hist, bin_edges = np.histogram(df["stimulus_raw"], bins=3, density=True)
-    if hist[1] < 1e-4:
-        df["stimulated"] = df["stimulus_raw"] > bin_edges[1]
+    hist, bin_edges = np.histogram(df.loc[:, col_stim], bins=3, density=True)
+    if hist.min() == hist[1]:
+        df["stimulated"] = df.loc[:, col_stim] > bin_edges[1]
     else:
         raise ValueError("Unable to determine threshold for stimulus on/off signal.")
 
     # get frame count from cumulative sum of positive changes to camera signal
     # basically frame count is incremented each time the camera switches back on
-    df["frame"] = df["camera"]\
+    df["frame"] = df["camera_BOOL"]\
         .astype(int)\
         .diff()\
         .fillna(0)\
@@ -145,13 +149,13 @@ if __name__ == "__main__":
     for fp in tqdm(fps_csv):
     
         # parse csv
-        df = parse_csv(
+        df_daq = parse_csv(
             filepath=fp,
         )
 
         # process csv
-        df_out = process_data(df)
+        df_frames = process_data(df_daq)
 
         # export processed DataFrame
         fp_out = fp.parent / (fp.stem + "_processed.txt")
-        df_out.to_csv(fp_out, index=False)
+        df_frames.to_csv(fp_out, index=False)
