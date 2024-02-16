@@ -1,16 +1,18 @@
+import csv
 import numpy as np
 import pandas as pd
 
 
 def parse_csv(
     filepath,
-    columns,
+    columns=None,
+    row_channels=3,
     skiprows=4,
     ):
-    """Parse csv file.
+    """Parse csv file output by NI DAQ.
 
     csv file output by experiment looks something like
-    >>>
+
         Timestamp,2/7/2024 3:58:30 PM,Timestamp,2/7/2024 3:58:30 PM
         Interval,0.0001,Interval,0.0001
         Channel name,"Frame",Channel name,"Button"
@@ -24,12 +26,29 @@ def parse_csv(
         0.0006,0.13716747530270368,0.0006,0.050819643540307879
         0.0007,0.13845624891109765,0.0007,0.049530869931913912
         0.0008,0.13845624891109765,0.0008,0.053397190757095814
-    <<<
-    4 columns where
-    columns 0 and 2 are time (s)
-    column  1 is the signal from the camera (V)
-    column  3 is the signal from stimulus detector (V)
+
+    where columns alternate between time and input channel
+        Time, Channel 1, Time, Channel 2, ..., Time, Channel N
     """
+    # infer column names from csv header if not provided
+    if columns is None:
+        with open(filepath) as f:
+            r = csv.reader(f)
+            # csv is usually huge so only read up to row {row_channels}
+            # (where the name of each channel should be)
+            for i in range(row_channels):
+                channels = next(r)
+
+        # channels now resembles
+        #     'Channel name', 'camera', 'Channel name', ...
+        # but pandas does not allow for duplicates so
+        # have to create unique column names
+        columns = []
+        for i, name in enumerate(channels):
+            # rather hacky but only even columns are duplicates (all
+            # 'Channel name') so rename those to time-0, time-2, etc.
+            column = name if i%2 else f"time-{i}"
+            columns.append(column)
 
     # read csv
     df = pd.read_csv(
@@ -38,12 +57,15 @@ def parse_csv(
         skiprows=skiprows
     )
 
-    # check that time columns are synchronized
-    if (df[columns[0]] != df[columns[2]]).any():
-        raise ValueError("Time is not synchronized between devices.")
-    
-    # return DataFrame sans duplicate time column
-    return df.drop(columns[2], axis=1)
+    # check that all time columns are synchronized
+    for col_time in columns[2::2]:
+        if (df.loc[:, columns[0]] != df.loc[:, col_time]).any():
+            raise ValueError("Time is not synchronized between devices.")
+        # drop (duplicate) column
+        df.drop(col_time, axis=1, inplace=True)
+
+    # rename time column and return DataFrame
+    return df.rename({df.columns[0]: "time"}, axis=1)
 
 
 def process_data(df):
@@ -111,19 +133,13 @@ if __name__ == "__main__":
     from natsort import natsorted
     from tqdm import tqdm
 
-    # filepaths
-    dir_ = Path("/Users/ryanlane/Projects/brain_imaging/data_experimental/")
-    expts = "2024-02-07/A2"
-    fps_csv = natsorted((dir_ / expts).glob("*/*[!flir_final].csv"))
-
-    # parameters
-    columns = [
-        "time",
-        "camera_raw",
-        "time_chk",
-        "stimulus_raw"
-    ]
-    skiprows = 4
+    # location where all experimental data is kept
+    dir_experiments = Path("/Users/ryanlane/Projects/brain_imaging/data_experimental/")
+    # path to a particular (or set of) experiment(s) for analysis
+    date = "2024-02-14"
+    expt = "exp3_1"
+    # collect csv files
+    fps_csv = natsorted((dir_experiments/date/expt).glob("*.csv"))
 
     # process the csvs
     for fp in tqdm(fps_csv):
@@ -131,8 +147,6 @@ if __name__ == "__main__":
         # parse csv
         df = parse_csv(
             filepath=fp,
-            columns=columns,
-            skiprows=skiprows
         )
 
         # process csv
