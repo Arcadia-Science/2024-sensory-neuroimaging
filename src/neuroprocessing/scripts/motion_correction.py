@@ -1,5 +1,5 @@
 import numpy as np
-import click
+# import click
 
 from neuroprocessing.align import StackAligner
 
