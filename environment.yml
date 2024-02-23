@@ -208,5 +208,17 @@ dependencies:
   - zlib-ng=2.0.7=h1a8c8d9_0
   - zstd=1.5.5=h4f39d0f_0
   - pip:
+    - click==8.1.7
+    - iniconfig==2.0.0
+    - ipympl==0.9.3
+    - ipython-genutils==0.2.0
+    - ipywidgets==8.1.2
+    - jupyterlab-widgets==3.0.10
+    - mpl-interactions==0.24.1
     - natsort==8.4.0
+    - neuroprocessing==0.1
+    - pluggy==1.4.0
+    - pyarrow==15.0.0
+    - pytest==8.0.1
     - tqdm==4.66.1
+    - widgetsnbextension==4.0.10
