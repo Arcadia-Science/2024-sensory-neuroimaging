@@ -106,13 +106,6 @@ def preprocess_image_for_matching(
     return image_rescaled
 
 
-# def _compute_pairwise_feature_matches(
-#     args
-# ):
-    
-#     compute_pairwise_feature_matches()
-
-
 def compute_pairwise_feature_matches(
     image_a,
     image_b,
