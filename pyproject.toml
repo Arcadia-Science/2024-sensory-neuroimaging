@@ -10,12 +10,6 @@ authors = [
   { name = "Ilya Kolb", email = "ilya.kolb@arcadiascience.com" },
   { name = "Michael Reitman", email = "michael.reitman@arcadiascience.com" }
 ]
-dependencies = [
-  "numpy==1.26.4",
-  "pandas==2.2.0",
-  "scikit-image==0.22.0",
-  "matplotlib==3.8.2"
-]
 
 [tool.ruff]
 # The directories to consider when resolving first- vs. third-party imports
