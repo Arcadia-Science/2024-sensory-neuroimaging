@@ -208,15 +208,6 @@ class StackAligner:
 
                 iteration_n += 1
 
-                print(
-                    iteration_n,
-                    len(coords_i),
-                    "n_scales",
-                    self.SIFT_parameters["n_scales"],
-                    "c_dog",
-                    self.SIFT_parameters["c_dog"],
-                )
-
         # too few features
         else:
             while (len(coords_i) < target_num_features) and (iteration_n < max_iterations):
@@ -232,15 +223,6 @@ class StackAligner:
                 )
 
                 iteration_n += 1
-
-                print(
-                    iteration_n,
-                    len(coords_i),
-                    "n_scales",
-                    self.SIFT_parameters["n_scales"],
-                    "c_dog",
-                    self.SIFT_parameters["c_dog"],
-                )
 
     def compute_feature_set(self):
         """Compute features for each sequential pair of images in stack.
