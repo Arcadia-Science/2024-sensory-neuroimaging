@@ -153,10 +153,94 @@ class StackAligner:
             )
             raise TypeError(msg)
 
-    def optimize_SIFT_params(self):
-        """Optimize SIFT parameters for feature matching."""
-        msg = "Optimization of these parameters is not yet implemented."
-        raise NotImplementedError(msg)
+    def optimize_SIFT_params(self, target_num_features=150, max_iterations=10):
+        """Optimize SIFT parameters for feature matching.
+
+        Tune SIFT parameters `n_scales` and `c_dog` to arrive at the target
+        number of features returned by SIFT. The choice of these two parameters
+        was based on ~30min of testing and is therefore somewhat arbitrary,
+        hard to justify, and is subject to change in the future.
+
+        Probably the most troubling aspect of SIFT is tuning the parameters
+        to get a sensible number of features. This sensible number is
+        application-dependent but normally boils down to a tradeoff between
+        time and accuracy.
+
+        For the specific application of aligning timelapse data of mouse brain
+        images, 150 seems to be a sensible number from empirical observations
+        thus far. Numbers higher than this will take longer without improving
+        the alignment accuracy all that much. Numbers lower than this seem to
+        result in less than desirable motion correction.
+
+        NOTE: This function is very experimental
+        """
+
+        # extract the last two frames of the timelapse as they are
+        # 1) guaranteed to exist and
+        # 2) the most photobleached so hardest to find features from
+        frame_i = self.stack[-2, :, :].copy()
+        frame_j = self.stack[-1, :, :].copy()
+        frame_i_preprocessed = preprocess_image_for_matching(frame_i)
+        frame_j_preprocessed = preprocess_image_for_matching(frame_j)
+
+        # get the number of features with default SIFT parameters to know
+        # which direction to tune the optimization
+        coords_i, _coords_j = compute_pairwise_feature_matches(
+            frame_i_preprocessed, frame_j_preprocessed, self.SIFT_parameters
+        )
+
+        # begin optimization routine
+        iteration_n = 0
+
+        # too many features
+        if len(coords_i) > target_num_features:
+            while (len(coords_i) > target_num_features) and (iteration_n < max_iterations):
+                # decrement `n_scales` every 3rd iteration and increase `c_dog`
+                # by 10% every iteration to find less features
+                if not iteration_n % 3:
+                    self.SIFT_parameters["n_scales"] = max(1, self.SIFT_parameters["n_scales"] - 1)
+                self.SIFT_parameters["c_dog"] = min(0.1, 1.1 * self.SIFT_parameters["c_dog"])
+
+                # recompute features with adjusted SIFT parameters
+                coords_i, _coords_j = compute_pairwise_feature_matches(
+                    frame_i_preprocessed, frame_j_preprocessed, self.SIFT_parameters
+                )
+
+                iteration_n += 1
+
+                print(
+                    iteration_n,
+                    len(coords_i),
+                    "n_scales",
+                    self.SIFT_parameters["n_scales"],
+                    "c_dog",
+                    self.SIFT_parameters["c_dog"],
+                )
+
+        # too few features
+        else:
+            while (len(coords_i) < target_num_features) and (iteration_n < max_iterations):
+                # increment `n_scales` every 3rd iteration and decrease `c_dog`
+                # by 10% every iteration to find more features
+                if not iteration_n % 3:
+                    self.SIFT_parameters["n_scales"] = min(9, self.SIFT_parameters["n_scales"] + 1)
+                self.SIFT_parameters["c_dog"] = max(0.005, 0.9 * self.SIFT_parameters["c_dog"])
+
+                # recompute features with adjusted SIFT parameters
+                coords_i, _coords_j = compute_pairwise_feature_matches(
+                    frame_i_preprocessed, frame_j_preprocessed, self.SIFT_parameters
+                )
+
+                iteration_n += 1
+
+                print(
+                    iteration_n,
+                    len(coords_i),
+                    "n_scales",
+                    self.SIFT_parameters["n_scales"],
+                    "c_dog",
+                    self.SIFT_parameters["c_dog"],
+                )
 
     def compute_feature_set(self):
         """Compute features for each sequential pair of images in stack.
@@ -235,6 +319,8 @@ class StackAligner:
           aligned stack should have same intensity range and dtype as the input
           stack.
         """
+        # run optimization routine
+        self.optimize_SIFT_params()
 
         # run feature detection either sequentially or in parallel
         if self.num_workers >= 2:
