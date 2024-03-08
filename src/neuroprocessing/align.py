@@ -9,6 +9,40 @@ from tqdm import tqdm
 
 
 class StackAligner:
+    """Align timelapse imaging data using linear transformations derived from
+    SIFT + RANSAC.
+
+    TODO: describe problem...
+    TODO: describe approach...
+    TODO: briefly describe what SIFT and RANSAC do and why they are used here
+
+    Parameters
+    ----------
+    filepath : str or `pathlib.PosixPath` (optional)
+        Input filename. Must be compatible with `ski.io.imread`.
+    stack : ([T, Z], Y, X) array (optional)
+        Input image stack as numpy array.
+    num_workers : int (optional)
+        Number of workers for multiprocessing.
+    max_translation : scalar [px] (optional)
+        Upper limit on frame-to-frame translation to apply.
+    max_rotation : scalar [deg] (optional)
+        Upper limit on frame-to-frame rotation to apply.
+    SIFT_parameters : dict (optional)
+        Parameters for SIFT (Scale Invariant Feature Transform) [1].
+    RANSAC_parameters : dict (optional)
+        Parameters for RANSAC (RANdom SAmple Consensus) [2].
+
+    Methods
+    -------
+    align()
+
+    References
+    ----------
+    [1] https://scikit-image.org/docs/stable/api/skimage.feature.html#skimage.feature.SIFT
+    [2] https://scikit-image.org/docs/stable/api/skimage.measure.html#skimage.measure.ransac
+    """
+
     def __init__(
         self,
         filepath=None,
@@ -19,40 +53,6 @@ class StackAligner:
         SIFT_parameters=None,
         RANSAC_parameters=None,
     ):
-        """Align a stack of images using linear transformations derived from
-        SIFT + RANSAC.
-
-        TODO: describe problem...
-        TODO: describe approach...
-        TODO: briefly describe what SIFT and RANSAC do and why they are used here
-
-        Parameters
-        ----------
-        filepath : str or `pathlib.PosixPath` (optional)
-            Input filename. Must be compatible with `ski.io.imread`.
-        stack : ([T, Z], Y, X) array (optional)
-            Input image stack as numpy array.
-        num_workers : int (optional)
-            Number of workers for multiprocessing.
-        max_translation : scalar [px] (optional)
-            Upper limit on frame-to-frame translation to apply.
-        max_rotation : scalar [deg] (optional)
-            Upper limit on frame-to-frame rotation to apply.
-        SIFT_parameters : dict (optional)
-            Parameters for SIFT (Scale Invariant Feature Transform) [1].
-        RANSAC_parameters : dict (optional)
-            Parameters for RANSAC (RANdom SAmple Consensus) [2].
-
-        Methods
-        -------
-        align()
-
-        References
-        ----------
-        [1] https://scikit-image.org/docs/stable/api/skimage.feature.html#skimage.feature.SIFT
-        [2] https://scikit-image.org/docs/stable/api/skimage.measure.html#skimage.measure.ransac
-        """
-
         self.load(filepath, stack)
         self.num_workers = num_workers
         self.max_translation = max_translation
