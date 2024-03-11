@@ -28,6 +28,8 @@ class StackAligner:
         Upper limit on frame-to-frame translation to apply.
     max_rotation : scalar [deg] (optional)
         Upper limit on frame-to-frame rotation to apply.
+    target_num_features : int
+        Target number of features for SIFT parameter optimization.
     SIFT_parameters : dict (optional)
         Parameters for SIFT (Scale Invariant Feature Transform) [1].
     RANSAC_parameters : dict (optional)
@@ -50,6 +52,7 @@ class StackAligner:
         num_workers=8,
         max_translation=20,
         max_rotation=2,
+        target_num_features=150,
         SIFT_parameters=None,
         RANSAC_parameters=None,
     ):
@@ -57,6 +60,7 @@ class StackAligner:
         self.num_workers = num_workers
         self.max_translation = max_translation
         self.max_rotation = max_rotation
+        self.target_num_features = target_num_features
 
         # reasonable SIFT parameters for expected data
         priors_SIFT = {
@@ -153,7 +157,7 @@ class StackAligner:
             )
             raise TypeError(msg)
 
-    def optimize_SIFT_params(self, target_num_features=150, max_iterations=10):
+    def optimize_SIFT_params(self, max_iterations=10):
         """Optimize SIFT parameters for feature matching.
 
         Tune SIFT parameters `n_scales` and `c_dog` to arrive at the target
@@ -193,8 +197,8 @@ class StackAligner:
         iteration_n = 0
 
         # too many features
-        if len(coords_i) > target_num_features:
-            while (len(coords_i) > target_num_features) and (iteration_n < max_iterations):
+        if len(coords_i) > self.target_num_features:
+            while (len(coords_i) > self.target_num_features) and (iteration_n < max_iterations):
                 # decrement `n_scales` every 3rd iteration and increase `c_dog`
                 # by 10% every iteration to find less features
                 if not iteration_n % 3:
@@ -210,7 +214,7 @@ class StackAligner:
 
         # too few features
         else:
-            while (len(coords_i) < target_num_features) and (iteration_n < max_iterations):
+            while (len(coords_i) < self.target_num_features) and (iteration_n < max_iterations):
                 # increment `n_scales` every 3rd iteration and decrease `c_dog`
                 # by 10% every iteration to find more features
                 if not iteration_n % 3:
