@@ -4,6 +4,7 @@ from neuroprocessing.align import StackAligner
 
 max_translation_option = click.option(
     "--max-translation",
+    "max_translation",
     type=float,
     default=20,
     show_default=True,
@@ -11,19 +12,29 @@ max_translation_option = click.option(
 )
 max_rotation_option = click.option(
     "--max-rotation",
+    "max_rotation",
     type=float,
     default=2,
     show_default=True,
     help="Upper limit on frame-to-frame rotation.",
 )
+target_num_features_option = click.option(
+    "--target-num-features",
+    "target_num_features",
+    type=int,
+    default=150,
+    show_default=True,
+    help="Target number of features for SIFT parameter optimization.",
+)
 
 
-@cli_options.data_file_option
-@cli_options.num_workers_option
-@max_translation_option
+@target_num_features_option
 @max_rotation_option
+@max_translation_option
+@cli_options.num_workers_option
+@cli_options.data_file_option
 @click.command()
-def main(filename, max_translation, max_rotation, num_workers):
+def main(filepath, num_workers, max_translation, max_rotation, target_num_features):
     """Register each frame of an image stack using linear transformations.
 
     This script is analogous to but seeks to improve upon the Fiji plugin
@@ -31,10 +42,11 @@ def main(filename, max_translation, max_rotation, num_workers):
     """
 
     aligner = StackAligner(
-        filepath=filename,
+        filepath=filepath,
+        num_workers=num_workers,
         max_translation=max_translation,
         max_rotation=max_rotation,
-        num_workers=num_workers,
+        target_num_features=target_num_features,
     )
     aligner.align()
     aligner.export()
