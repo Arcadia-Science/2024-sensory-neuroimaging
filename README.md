@@ -28,6 +28,10 @@ To display a help message for any script:
 python src/neuroprocessing/scripts/{script.py} --help
 ```
 
+### Injection analysis
+
+To analyze injection imaging data, see `src/neuroprocessing/scripts/run_analysis.py`. The script includes steps for preprocessing (downsample, motion correction) and processing (segmentation, bleach correction).
+
 ### Motion correction
 
 To apply motion correction to a timelapse:
