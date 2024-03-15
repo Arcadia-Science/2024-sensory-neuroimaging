@@ -2,12 +2,10 @@ import re, os, json
 import numpy as np
 import skimage.io as io
 
-class ImagingTrials:
+class ImagingTrialLoader:
     def __init__(self, params):
         """
-        Initialize the FileLoader with a list of files and their metadata.
-        Each file's metadata should be in the format of a dictionary with keys
-        for 'camera', 'rec_time', 'limb', 'injection_type', and 'iso'.
+        Initialize the ImagingTrialLoader with params metadata file (generated from run_analysis).
 
         Example params:
             params = {
@@ -22,7 +20,7 @@ class ImagingTrials:
                 "save_to_s3": False,
                 'crop_px' : 20,
                 'bottom_percentile' : 5
-    }
+                }
         """
         self.params = params
         self.base_path = params['s3fs_toplvl_path'] if params['load_from_s3'] else params['local_toplvl_path']
@@ -32,42 +30,41 @@ class ImagingTrials:
         self.masks = []
 
     def collect_exps_and_trials(self):
+        """Collects all experiment and trial directories from the base path."""
         exps = []
         trials = []
         
         # List directories at the first level (exps)
-        date_dirs = [d for d in os.listdir(self.base_path) if os.path.isdir(os.path.join(self.base_path, d))]
+        exp_dirs = [d for d in os.listdir(self.base_path) if os.path.isdir(os.path.join(self.base_path, d))]
         
-        for date in date_dirs:
+        for exp in exp_dirs:
             # Path to the date directory
-            date_dir_path = os.path.join(self.base_path, date)
+            exp_dir_path = os.path.join(self.base_path, exp)
             
             # List directories at the second level (trials)
-            exp_dirs = [d for d in os.listdir(date_dir_path) if os.path.isdir(os.path.join(date_dir_path, d))]
+            trial_dirs = [d for d in os.listdir(exp_dir_path) if os.path.isdir(os.path.join(exp_dir_path, d))]
             
             # Append date and exp information
-            for exp in exp_dirs:
-                exps.append(date)
-                trials.append(exp)
+            for trial in trial_dirs:
+                exps.append(exp)
+                trials.append(trial)
         
         return exps, trials
 
     def parse_filename(self, exp_dir, trial_dir):
-            """Parse a filepath into its components, including the date and filename."""
-            date = exp_dir
-            
+            """Parse a filepath into its components."""
             tokens = trial_dir.split("_")
             camera = tokens[0]
             rec_time = tokens[1]
             limb = tokens[2]
             injection_type = tokens[3]
-            iso = tokens[4]  # Joining the rest, assuming 'iso' may contain '_'
+            # If there are more tokens, append them to the remainder
+            remainder = "_".join(tokens[4:])
             
-            return {"exp_dir": date, "camera": camera, "rec_time": rec_time, "limb": limb, "injection_type": injection_type, "iso": iso}
+            return {"exp_dir": exp_dir, "camera": camera, "rec_time": rec_time, "limb": limb, "injection_type": injection_type, "remainder": remainder}
 
     def filter_exp_and_trial_dirs(self, **criteria):
         """Filter  trials based on criteria (wildcards allowed).
-            Acceptable criteria are: "exp_dir", "camera", "rec_time", "limb", "injection_type", "iso"
         """
         loaded_exp_dirs = []
         loaded_trial_dirs = []
@@ -83,7 +80,7 @@ class ImagingTrials:
     
     def load_mask_files(self):
         """
-        Loads "mask.npy" files from the directories identified by loaded_files.
+        Loads "mask.npy" files for all (optinally filtered) trials.
         """
         masks = []
         for e,t in zip(self.filtered_exp_dirs, self.filtered_trial_dirs):
@@ -99,7 +96,7 @@ class ImagingTrials:
 
     def load_traces(self):
         """
-        Loads "traces.npy" files from the directories identified by loaded_files.
+        Loads "traces.npy" files for all (optinally filtered) trials.
         """
         traces = []
         for e,t,m in zip(self.filtered_exp_dirs, self.filtered_trial_dirs, self.masks):
@@ -113,7 +110,7 @@ class ImagingTrials:
 
     def get_sync_infos(self):
         """
-        Loads "sync_info.json" files from the directories identified by loaded_files.
+        Loads "sync_info.json" files for all (optinally filtered) trials.
         """
         sync_infos = []
         for e,t in zip(self.filtered_exp_dirs, self.filtered_trial_dirs):

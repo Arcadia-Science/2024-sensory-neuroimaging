@@ -244,6 +244,9 @@ def preprocess_trial(exp_dir:str, trial_dir:str, params:dict):
     for fp_tif in fp_tifs:
         stack_list.append(io.imread(fp_tif, is_ome=False, is_mmstack=False))
 
+    if stack_list == []:
+        raise FileNotFoundError(f"No tiff files found in {trial_path}")
+    
     # Downsample image
     stack_downsampled = block_reduce(np.concatenate(stack_list, axis=0), block_size=(params['downsample_factor'], 1, 1), func=np.mean)
 
