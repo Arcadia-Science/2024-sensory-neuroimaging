@@ -12,6 +12,72 @@ from neuroprocessing.scripts.parse_csv import parse_csv, process_data
 from neuroprocessing.align import StackAligner
 
 from scipy import ndimage
+from scipy.signal import spectrogram
+from scipy.interpolate import CubicSpline
+import skimage.io as io
+from scipy.signal import find_peaks
+
+def compute_breathing_rate(signal: np.array, fs:float) -> np.array:
+    """Compute breathing rate from signal using spectrogram.
+
+    Args:
+        signal (np.ndarray): 1D array of signal
+        fs (float): sampling frequency
+    
+    Returns:
+        np.array: 1D numpy array of breathing rate, interpolated to be the same length as signal
+    """
+
+    min_peak_height = 100 # minimum height of freq peak in spectrogram
+    min_breathing_freq, max_breathing_freq = 0.5, 2 # frequency range to look for breathing rate (Hz)
+    spectrogram_nperseg = 200 # number of samples per segment in spectrogram
+    spectrogram_noverlap = 50 # number of samples to overlap between segments in spectrogram
+
+
+    f, t, Sxx = spectrogram(signal, fs, nperseg=spectrogram_nperseg, noverlap=spectrogram_noverlap, detrend = 'linear')
+    # plt.pcolormesh(t, f, Sxx, shading='gouraud')
+    # plt.ylim(0, 3)
+
+
+    breathing_freqs = (f > min_breathing_freq) & (f < max_breathing_freq)
+    Sxx_breathing = Sxx[breathing_freqs]
+
+    # find peaks in spectrogram
+    f_peak_array = []
+    for i in range(Sxx_breathing.shape[1]):
+        peaks, _ = find_peaks(Sxx_breathing[:,i], height=min_peak_height, distance=4)
+        # if >1 peak, keep only highest
+        if len(peaks) > 0:
+            peaks = [peaks[np.argmax(Sxx_breathing[peaks, i])]]
+            f_peak = f[breathing_freqs][peaks]
+            f_peak_array.append(f_peak[0])
+        else:
+            f_peak_array.append(np.nan)
+
+    f_peak_array = np.array(f_peak_array)
+
+    # remove nans
+    t_peak_array = t[~np.isnan(f_peak_array)]
+    f_peak_array = f_peak_array[~np.isnan(f_peak_array)]
+    # plt.plot(t_peak_array,f_peak_array)
+
+    # interpolate back to be the same size as roi_mean
+    f_peak_interp = CubicSpline(t_peak_array, f_peak_array, bc_type='natural')
+
+    return f_peak_interp(np.arange(0, len(signal)) / fs)
+
+
+# script to call compute_breathing_rate
+# if 'img' not in locals():
+#     img = io.imread('/Users/ilya_arcadia/arcadia-neuroimaging-pruritogens/Videos/2024-03-06/Zyla_15min_RHL_salineinj_1pt25pctISO_1/Zyla_15min_RHL_salineinj_1pt25pctISO_1_MMStack_Pos0.ome.tif')
+# center = np.array(img.shape) // 2
+# roi = img[:,center[1]-50:center[1]+50, center[2]-50:center[2]+50]
+# roi_mean = np.mean(roi, axis=(1,2))
+# f_breathing = compute_breathing_rate(roi_mean, fs = 10)
+# f,ax = plt.subplots()
+# plt.plot(f_breathing)
+
+
 
 def identify_trial_save_paths(exp_dir:str, trial_dir:str, params:dict) -> tuple:
     """Identify the paths to the raw and processed tiff stacks for a single trial
