@@ -1,24 +1,20 @@
-from pathlib import Path
 import json
 from natsort import natsorted
+from neuroprocessing.scripts.parse_csv import parse_csv, process_data
+from neuroprocessing.align import StackAligner
 import numpy as np
+from pathlib import Path
 import pandas as pd
-
+from scipy import ndimage
+from scipy.signal import spectrogram
+from scipy.interpolate import CubicSpline
+from scipy.signal import find_peaks
 from skimage import io
 from skimage.measure import block_reduce
 from skimage.segmentation import flood
 
-from neuroprocessing.scripts.parse_csv import parse_csv, process_data
-from neuroprocessing.align import StackAligner
-
-from scipy import ndimage
-from scipy.signal import spectrogram
-from scipy.interpolate import CubicSpline
-import skimage.io as io
-from scipy.signal import find_peaks
-
 def compute_breathing_rate(signal: np.array, fs:float) -> np.array:
-    """Compute breathing rate from signal using spectrogram.
+    """Compute breathing rate from signal using spectrogram. Not currently being used in the pipeline.
 
     Args:
         signal (np.ndarray): 1D array of signal
@@ -67,19 +63,19 @@ def compute_breathing_rate(signal: np.array, fs:float) -> np.array:
     return f_peak_interp(np.arange(0, len(signal)) / fs)
 
 
-# script to call compute_breathing_rate
-# if 'img' not in locals():
-#     img = io.imread('/Users/ilya_arcadia/arcadia-neuroimaging-pruritogens/Videos/2024-03-06/Zyla_15min_RHL_salineinj_1pt25pctISO_1/Zyla_15min_RHL_salineinj_1pt25pctISO_1_MMStack_Pos0.ome.tif')
-# center = np.array(img.shape) // 2
-# roi = img[:,center[1]-50:center[1]+50, center[2]-50:center[2]+50]
-# roi_mean = np.mean(roi, axis=(1,2))
-# f_breathing = compute_breathing_rate(roi_mean, fs = 10)
-# f,ax = plt.subplots()
-# plt.plot(f_breathing)
+    # script to call compute_breathing_rate
+    # if 'img' not in locals():
+    #     img = io.imread('/Users/ilya_arcadia/arcadia-neuroimaging-pruritogens/Videos/2024-03-06/Zyla_15min_RHL_salineinj_1pt25pctISO_1/Zyla_15min_RHL_salineinj_1pt25pctISO_1_MMStack_Pos0.ome.tif')
+    # center = np.array(img.shape) // 2
+    # roi = img[:,center[1]-50:center[1]+50, center[2]-50:center[2]+50]
+    # roi_mean = np.mean(roi, axis=(1,2))
+    # f_breathing = compute_breathing_rate(roi_mean, fs = 10)
+    # f,ax = plt.subplots()
+    # plt.plot(f_breathing)
 
 
 
-def identify_trial_save_paths(exp_dir:str, trial_dir:str, params:dict) -> tuple:
+def _identify_trial_save_paths(exp_dir:str, trial_dir:str, params:dict) -> tuple:
     """Identify the paths to the raw and processed tiff stacks for a single trial
     
     Inputs:
@@ -140,7 +136,7 @@ def _get_sync_info(sync_csv_path):
     return sync_info
 
 def _get_brain_mask(stack):
-    """Return a binary mask of the brain from the tiff stack
+    """Return a binary mask of the brain from the tiff stack using the maximum projection of the stack and flood-fill algorithm
     """
     stack_max = stack.max(axis=0)
     stack_max_clipped = stack_max.copy()
@@ -153,19 +149,17 @@ def process_trial(exp_dir:str, trial_dir:str, params:dict):
     """Process single trial
     
     Process a single imaging trial and save the processed tiff stack to the same directory as the original tiff stack.
-
-    An imaging trial can be split into 2+ videos due to tiff file size limits.
-
-    Stimulus is assumed to be in the first video.
     
     Inputs:
         exp_dir: str 
             Experiment dir e.g. "2024-03-06"
         trial_dir: str 
             Trial dir e.g. "Zyla_15min_LHL_salineinj_1pt75pctISO_1"
+        params: dict
+            Parameters of the run (see `run_analysis.py`)
     """
 
-    trial_path, save_path = identify_trial_save_paths(exp_dir, trial_dir, params)
+    trial_path, save_path = _identify_trial_save_paths(exp_dir, trial_dir, params)
 
     # load sync json if exists
     if (save_path / "sync_info.json").exists():
@@ -177,12 +171,12 @@ def process_trial(exp_dir:str, trial_dir:str, params:dict):
         sync_info["framerate_hz"] = 10
         print(f"Warning: No sync_info.json found. Using default value of {sync_info['stim_onset_frame']} for stimulus onset time and {sync_info['framerate_hz']} Hz for framerate.")
     
-    # load processed tiff stack
+    # load pre-processed tiff stack
     fp_processed_tif = save_path / (params["preprocess_prefix"] + trial_dir + ".tif")
     if not fp_processed_tif.exists():
         raise FileNotFoundError(f"Error: No preprocessed file exisits: {fp_processed_tif}")
-
     stack = io.imread(fp_processed_tif)
+
     # crop image to remove the black border that occurs due to motion registration
     crop_px = params["crop_px"]
     stack = stack[:, crop_px:-crop_px, crop_px:-crop_px]
@@ -196,10 +190,10 @@ def process_trial(exp_dir:str, trial_dir:str, params:dict):
     # find bottom X% of pixels in brain
     bottomX = np.percentile(stack[:, mask], params['bottom_percentile'], axis=1, keepdims=True).astype(np.uint16)
 
-    # subtract bottom X% from all pixels
+    # subtract bottom X% from all pixels (bleach correction)
     stack -= bottomX[:,np.newaxis]
     stack -= stack.min(axis=0, keepdims=True)
-    stack[stack > 30000] = 0
+    stack[stack > 30000] = 0 # outlier pixels as a result of motion correction
 
     # save mask
     np.save(save_path / ('mask_' + params["process_prefix"] + trial_dir + '.npy'), mask)
@@ -212,8 +206,9 @@ def preprocess_trial(exp_dir:str, trial_dir:str, params:dict):
     """Preprocessing of a single imaging trial
 
     A single trial may have multiple videos due to tiff file size limits.
-        1. Downsample the tiff stack
-        2. Motion correction
+        1. Load the tiff stack (or stacks if there are multiple due to file size limits)
+        2. Downsample the tiff stack
+        3. Motion correction using `StackAligner`
     
         Notes: 
             - Tiff stacks with MMStack in the name will be processed and concatenated if there are multiple. imread is used with `is_ome=False` and `is_mmstack=False` to make sure it doesn't try to read the OME metadata and load the entire file sequence
@@ -225,9 +220,11 @@ def preprocess_trial(exp_dir:str, trial_dir:str, params:dict):
             Experiment dir e.g. "2024-03-06"
         trial_dir: str 
             Trial dir e.g. "Zyla_15min_LHL_salineinj_1pt75pctISO_1"
+        params: dict
+            Parameters of the run (see `run_analysis.py`)
     """
     
-    trial_path, save_path = identify_trial_save_paths(exp_dir, trial_dir, params)
+    trial_path, save_path = _identify_trial_save_paths(exp_dir, trial_dir, params)
 
     fp_tifs = natsorted(Path(trial_path).glob("*MMStack*.tif"))
     fp_csv = natsorted(Path(trial_path).glob("*.csv"))
@@ -273,6 +270,8 @@ def preprocess_and_process_trial(exp_dir:str, trial_dir:str, params:dict):
             Experiment dir e.g. "2024-03-06"
         trial_dir: str 
             Trial dir e.g. "Zyla_15min_LHL_salineinj_1pt75pctISO_1"
+        params: dict
+            Parameters of the run (see `run_analysis.py`)
     """
     preprocess_trial(exp_dir, trial_dir, params)
     process_trial(exp_dir, trial_dir, params)

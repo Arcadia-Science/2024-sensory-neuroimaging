@@ -3,6 +3,10 @@ import numpy as np
 import skimage.io as io
 
 class ImagingTrialLoader:
+    """
+    Class to load imaging trials and their associated artifacts from a directory structure.
+    """
+
     def __init__(self, params):
         """
         Initialize the ImagingTrialLoader with params metadata file (generated from run_analysis).
