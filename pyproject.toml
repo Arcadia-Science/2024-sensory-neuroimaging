@@ -1,7 +1,7 @@
 [project]
 name = "neuroprocessing"
 description = "Data analysis scripts and notebooks for the translation pilot `Brain imaging of puritogen responses`"
-version = "0.1"
+version = "0.2"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { file = "LICENSE" }

@@ -48,7 +48,7 @@ This pipeline is designed to preprocess and analyze data *in vivo* brain imaging
 
 ### How to run the pipeline
 Assumed file structure
-* Raw imaging and NIDAQ sync data is stored in S3 buckets that are accessible using [S3FS](https://github.com/s3fs-fuse/s3fs-fuse)
+* Raw imaging and NIDAQ sync data is stored in S3 buckets that are accessible using [S3FS](https://github.com/s3fs-fuse/s3fs-fuse). Follow instructions on S3FS to mount the S3 bucket to a local directory.
 * File structure is assumed to be `{top-level exp dir}/{exp date}/{trial dir}/{Tiff stacks and nidaq CSV files here}`
 * Tiff stack filenames are assumed to be in the form: `Zyla_5min_LHLstim_2son4soff_1pt75pctISO_1` where:
     * `Zyla` is the camera name
