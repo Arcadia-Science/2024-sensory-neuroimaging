@@ -351,8 +351,36 @@ class StackAligner:
         self.stack_aligned = np.array([self.stack[0, :, :]] + images_warped)
         self.aligned = True
 
-    def export(self, aligned_stack=True, transformation_data=True):
-        """Export aligned image stack and data regarding the transformations."""
+    def export(self, export_dir=None, aligned_stack=True, transformation_data=True):
+        """Export aligned image stack and data regarding the transformations.
+
+        Parameters
+        ----------
+        export_dir : Path (optional)
+            Path to directory in which to store output. Saves output to same
+            directory as input image data file by default.
+        aligned_stack : bool (optional)
+            Whether to export the aligned stack.
+        transformation_data : bool (optional)
+            Whether to export the transformation data returned by SIFT + RANSAC
+            as a csv file.
+
+        Raises
+        ------
+        ValueError
+            If `StackAligner` was created with a numpy array AND `export_dir`
+            is not provided.
+        """
+        # check if export directory has been provided
+        if export_dir is None:
+            try:
+                export_dir = self.filepath.parent
+            except AttributeError as err:
+                msg = (
+                    "`export_dir` must be provided if `StackAligner` was "
+                    "created from a numpy array."
+                )
+                raise ValueError(msg) from err
 
         # check if stack has been aligned
         if not self.aligned:
@@ -361,13 +389,13 @@ class StackAligner:
         if aligned_stack:
             # append "_aligned" to filename and save aligned stack as tiff file
             stem = self.filepath.stem + "_aligned"
-            tgt = self.filepath.parent / (stem + ".tiff")
+            tgt = export_dir / (stem + ".tiff")
             ski.io.imsave(tgt, self.stack_aligned)
 
         if transformation_data:
             # output a csv of the form
             # TODO: put table here depicting output
-            tgt = self.filepath.parent / "alignment_data.csv"
+            tgt = export_dir / "alignment_data.csv"
             with open(tgt, "w") as _file:
                 csvwriter = csv.writer(_file)
 
