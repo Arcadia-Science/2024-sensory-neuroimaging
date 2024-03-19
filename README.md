@@ -3,7 +3,7 @@
 [![run with conda](http://img.shields.io/badge/run%20with-conda-3EB049?labelColor=000000&logo=anaconda)](https://docs.conda.io/projects/miniconda/en/latest/)
 
 
-Data analysis scripts and notebooks for the translation pilot "Brain imaging of puritogen responses"
+Data analysis scripts and notebooks for the translation pilot "Brain imaging of pruritogen responses"
 
 ## Purpose
 
@@ -13,13 +13,32 @@ Data analysis scripts and notebooks for the translation pilot "Brain imaging of 
 This repository uses conda to manage software environments and installations.
 
 ```{bash}
-conda create -n <NAME> --file environment.yml
-conda activate <NAME>
+conda create -n neuro --file envs/dev.yml
+conda activate neuro
 ```
-where <NAME> should be substituted with a name for the environment e.g. `neuro`.
 
 
 ## Overview
+
+
+## Scripts
+
+To display a help message for any script:
+```python
+python src/neuroprocessing/scripts/{script.py} --help
+```
+
+### Motion correction
+
+To apply motion correction to a timelapse:
+```python
+python src/neuroprocessing/scripts/correct_motion.py --filename {/path/to/timelapse.ome.tif}
+```
+
+Note that this script is somewhat computationally expensive and runs on 8 processors by default. Multiprocessing can be turned off by setting the number of workers argument to 1.
+```python
+python src/neuroprocessing/scripts/correct_motion.py --filename {/path/to/timelapse.ome.tif} --num-workers 1
+```
 
 
 ## Contributing
