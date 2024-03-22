@@ -72,7 +72,14 @@ python src/neuroprocessing/scripts/{script.py} --help
 
 ### Run injection analysis
 
-To analyze injection imaging data, see `src/neuroprocessing/scripts/run_analysis.py`. The script includes steps for preprocessing (downsample, motion correction) and processing (segmentation, bleach correction).
+To analyze injection imaging data, see `src/neuroprocessing/scripts/run_analysis.py`. The script includes steps for preprocessing (downsample, motion correction) and processing (segmentation, bleach correction). For example, to analyze a single experiment day, run:
+
+```bash
+conda activate neuro
+python src/neuroprocessing/scripts/run_analysis.py --date "2024-02-29"
+```
+
+During analysis you may see the following warning: `<tifffile.TiffFile 'Zyla_30min_RHL_…ack_Pos0.ome.tif'> ImageJ series metadata invalid or corrupted file`. This warning is expected because we are not using the OME metadata in TIFF files. It can be ignored. You will also see warnings like `UserWarning: {filename} is a low contrast image`. This is also expected and can be ignored.
 
 ### Motion correction
 
