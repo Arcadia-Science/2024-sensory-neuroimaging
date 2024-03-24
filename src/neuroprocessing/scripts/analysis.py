@@ -135,13 +135,17 @@ def _get_sync_info(sync_csv_path):
     print(f"Framerate (Hz): %.2f" % (framerate_hz))
     return sync_info
 
-def _get_brain_mask(stack):
+def _get_brain_mask(stack, flood_connectivity=20, flood_tolerance=1000):
     """Return a binary mask of the brain from the tiff stack using the maximum projection of the stack and flood-fill algorithm
     """
     stack_max = stack.max(axis=0)
     stack_max_clipped = stack_max.copy()
     stack_max_clipped[stack_max_clipped > np.median(stack_max) ] = np.median(stack_max)
-    mask = flood(stack_max_clipped, (int(stack_max_clipped.shape[0]/2), int(stack_max_clipped.shape[1]/2)), tolerance=100)
+
+    # create mask for the brain, starting from the center of the image
+    mask = flood(stack_max_clipped, (int(stack_max_clipped.shape[0]/2), int(stack_max_clipped.shape[1]/2)), 
+                 connectivity=flood_connectivity, 
+                 tolerance=flood_tolerance)
     mask = ndimage.binary_dilation(mask, iterations=10)
     return mask
 
@@ -185,7 +189,7 @@ def process_trial(exp_dir:str, trial_dir:str, params:dict):
     frames_before_stim = int(params["secs_before_stim"] * sync_info["framerate_hz"])
     stack = stack[int((sync_info["stim_onset_frame"] - frames_before_stim)/params['downsample_factor']):, :, :]
 
-    mask = _get_brain_mask(stack)
+    mask = _get_brain_mask(stack, flood_connectivity=params["flood_connectivity"], flood_tolerance=params["flood_tolerance"])
     
     # find bottom X% of pixels in brain
     bottomX = np.percentile(stack[:, mask], params['bottom_percentile'], axis=1, keepdims=True).astype(np.uint16)

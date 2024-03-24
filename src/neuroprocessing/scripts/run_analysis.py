@@ -39,6 +39,11 @@ if __name__ == '__main__':
                         help='Pixels to crop on each side to avoid edge effects after motion correction.')
     parser.add_argument('--bottom_percentile', type=int, default=default_params.get('bottom_percentile'),
                         help='Bottom percentile of pixels to use for bleach correction.')
+    parser.add_argument('--flood_connectivity', type=int, default=default_params.get('flood_connectivity'),
+                        help='Connectivity setting for flood-filling algorithm (skimage.segmentation.flood) to identify brain mask.')
+    parser.add_argument('--flood_tolerance', type=int, default=default_params.get('flood_tolerance'),
+                        help='Tolerance setting for flood-filling algorithm (skimage.segmentation.flood) to identify brain mask.')
+    
 
     args = parser.parse_args()
 
