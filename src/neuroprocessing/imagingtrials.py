@@ -33,6 +33,9 @@ class ImagingTrialLoader:
         self.filtered_trial_dirs = self.trial_dirs
         self.masks = []
 
+    def __len__(self):
+        return len(self.filtered_exp_dirs)
+    
     def collect_exps_and_trials(self):
         """Collects all experiment and trial directories from the base path."""
         exps = []
@@ -112,6 +115,43 @@ class ImagingTrialLoader:
         print(f"Loaded {len(traces)} traces.")
         return traces
 
+    def plot_montage(self, s_start:int, s_end:int, s_step=1, montage_hw = (5,20), montage_grid_shape=None):
+        """
+        Plots a montage of all (optinally filtered) trials.
+        """
+        from skimage.util import montage
+        import matplotlib.pyplot as plt
+
+        n_trials = len(self) # plot montage for each trial
+        sync_infos = self.get_sync_infos()
+        print(n_trials)
+        f, axs = plt.subplots(n_trials, 1, figsize=(montage_hw[0]*n_trials, montage_hw[1]), squeeze=False)
+        for i, (e,t, si) in enumerate(zip(self.filtered_exp_dirs, self.filtered_trial_dirs, sync_infos)):
+            processed_stack = io.imread(os.path.join(self.base_path, e, t, (self.params['process_prefix'] + t + ".tif")))
+            # get first frame closest to s_start
+            downsampled_rate = (si['framerate_hz'] / self.params['downsample_factor'])
+            frame_start, frame_end, frame_step = [int(downsampled_rate * s) for s in [s_start, s_end, s_step]]
+            n_frames = (frame_end - frame_start) // frame_step
+            print(f"Frame start: {frame_start}, Frame end: {frame_end}, Frame step: {frame_step}, N frames: {n_frames}")
+            montage_stack = processed_stack[frame_start:frame_end:frame_step,:,:]
+            axs[i][0].imshow(montage(montage_stack, 
+                                 fill = 0,
+                                 padding_width = 20,
+                                 rescale_intensity=False,
+                                 grid_shape= montage_grid_shape
+                                 ))
+            axs[i][0].set_title(f"{e} - {t}")
+            axs[i][0].axis("off")
+
+        plt.tight_layout()
+
+        return f
+    
+    def plot_montage_sta(self):
+        """
+        Plots a stimulus-triggered average montage of all (optinally filtered) trials.
+        """
+        
     def get_sync_infos(self):
         """
         Loads "sync_info.json" files for all (optinally filtered) trials.

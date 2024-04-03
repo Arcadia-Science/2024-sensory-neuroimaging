@@ -103,36 +103,49 @@ def _identify_trial_save_paths(exp_dir:str, trial_dir:str, params:dict) -> tuple
     save_path = Path(save_path) / exp_dir / trial_dir
     return (trial_path, save_path)
 
-def _get_sync_info(sync_csv_path):
+def _get_sync_info(sync_csv_path, col_stim = 'button'):
     """Get dict of sync info (stim time, etc) from the sync csv file
+
+    Inputs:
+        sync_csv_path: str
+            Path to the sync csv file
+        col_stim: str
+            Column name in the csv file that should be used for stimulus. 'button' means read the button channel. 'stim' means read the vibration motor channel
     """
     df_daq = parse_csv(sync_csv_path)
 
     df_frames = process_data(
         df_daq,
         col_camera="camera",
-        col_stim="button"
+        col_stim=col_stim
     )
 
-    stim_onset_frame = int(df_frames.loc[df_frames["stimulated"], "frame"].iloc[0])
+    # stim_onset_frame = int(df_frames.loc[df_frames["stimulated"], "frame"].iloc[0])
     df_frames.set_index("frame", inplace=True)
-    # print info
+    
+    stim_onset_frame = df_frames['stimulated'].diff().values
+    stim_onset_frame = np.where(stim_onset_frame == True)[0].tolist()
+
+    n_stims = len(stim_onset_frame)
     print(f"Stimulus onset frame: {stim_onset_frame}")
-    print(f"Stimulus onset time (s): {df_frames.loc[stim_onset_frame, 'time']}")
+    print(f"Stimulus onset time (s): {df_frames.loc[stim_onset_frame, 'time'].values}")
     stim_duration_frames = sum(df_frames['stimulated'])
-    frame_time_s = df_frames.loc[stim_onset_frame, 'frametime']
+    frame_time_s = df_frames.loc[stim_onset_frame, 'frametime'].mean()
     framerate_hz = 1/frame_time_s
 
     sync_info = {
+        "Number of stimulations": n_stims,
         "stim_onset_frame": stim_onset_frame,
         "stim_duration_frames": stim_duration_frames,
         "frame_time_s": frame_time_s,
         "framerate_hz": framerate_hz
     }
-    print(f"Stimulus duration (frames): {stim_duration_frames}")
-    print(f"Stimulus duration (s): {stim_duration_frames/framerate_hz}")
+    print(f"Number of stimulations: {n_stims}")
+    print(f"Stimulus duration (overall) (frames): {stim_duration_frames}")
+    print(f"Stimulus duration (overall) (s): {stim_duration_frames/framerate_hz}")
     print(f"Frame duration (ms): {frame_time_s*1000}")
     print(f"Framerate (Hz): %.2f" % (framerate_hz))
+
     return sync_info
 
 def _get_brain_mask(stack, flood_connectivity=20, flood_tolerance=1000):
@@ -170,10 +183,7 @@ def process_trial(exp_dir:str, trial_dir:str, params:dict):
         with open(save_path / "sync_info.json", "r") as f:
             sync_info = json.load(f)
     else:
-        sync_info = {}
-        sync_info["stim_onset_frame"] = 3000
-        sync_info["framerate_hz"] = 10
-        print(f"Warning: No sync_info.json found. Using default value of {sync_info['stim_onset_frame']} for stimulus onset time and {sync_info['framerate_hz']} Hz for framerate.")
+        raise FileNotFoundError(f"Error: No sync file found in {save_path}")
     
     # load pre-processed tiff stack
     fp_processed_tif = save_path / (params["preprocess_prefix"] + trial_dir + ".tif")
@@ -185,9 +195,9 @@ def process_trial(exp_dir:str, trial_dir:str, params:dict):
     crop_px = params["crop_px"]
     stack = stack[:, crop_px:-crop_px, crop_px:-crop_px]
 
-    # only process frames starting at X seconds before stimulus
+    # only process frames starting at X seconds before first stimulus
     frames_before_stim = int(params["secs_before_stim"] * sync_info["framerate_hz"])
-    stack = stack[int((sync_info["stim_onset_frame"] - frames_before_stim)/params['downsample_factor']):, :, :]
+    stack = stack[int((sync_info["stim_onset_frame"][0] - frames_before_stim)/params['downsample_factor']):, :, :]
 
     mask = _get_brain_mask(stack, flood_connectivity=params["flood_connectivity"], flood_tolerance=params["flood_tolerance"])
     
@@ -199,6 +209,9 @@ def process_trial(exp_dir:str, trial_dir:str, params:dict):
     stack -= stack.min(axis=0, keepdims=True)
     stack[stack > 30000] = 0 # outlier pixels as a result of motion correction
 
+    # set pixels outside of mask to 0
+    stack[:, ~mask] = 0
+    
     # save mask
     np.save(save_path / ('mask_' + params["process_prefix"] + trial_dir + '.npy'), mask)
     
@@ -236,7 +249,7 @@ def preprocess_trial(exp_dir:str, trial_dir:str, params:dict):
     if len(fp_csv) == 0:
         print(f"No sync file found in {trial_path}")
     else:
-        sync_info = _get_sync_info(fp_csv[0])
+        sync_info = _get_sync_info(fp_csv[0], col_stim=params['sync_csv_col'])
         # save sync info as json
         with open(save_path / "sync_info.json", "w") as f:
             json.dump(sync_info, f)
