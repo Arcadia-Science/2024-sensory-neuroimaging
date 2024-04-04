@@ -147,10 +147,32 @@ class ImagingTrialLoader:
 
         return f
     
-    def plot_montage_sta(self):
+    def get_sta_stacks(self, s_pre_stim = 1, s_post_stim = 5):
         """
-        Plots a stimulus-triggered average montage of all (optinally filtered) trials.
+        Return a list of stimulus-triggered average stacks [n_trials x n_frames x h x w] for all (optinally filtered) trials.
+
+        Inputs:
+            s_pre_stim: int
+                Number of seconds before stimulus onset to include in the stack.
+            s_post_stim: int
+                Number of seconds after stimulus onset to include in the stack.
+        
         """
+
+        sync_infos = self.get_sync_infos()
+
+        sta_stacks = []
+        for i, (e,t, si) in enumerate(zip(self.filtered_exp_dirs, self.filtered_trial_dirs, sync_infos)):
+            processed_stack = io.imread(os.path.join(self.base_path, e, t, (self.params['process_prefix'] + t + ".tif")))
+
+            downsampled_rate = (si['framerate_hz'] / self.params['downsample_factor'])
+            frame_pre_stim, frame_post_stim = [int(downsampled_rate * s) for s in [s_pre_stim, s_post_stim]]
+            stim_onsets_downsampled = [int(sof // self.params['downsample_factor']) for sof in si['stim_onset_frame']]
+            sta_stack = np.stack([processed_stack[sof-frame_pre_stim:sof+frame_post_stim, :,:] for sof in stim_onsets_downsampled[1:-2]])
+            sta_stacks.append(sta_stack)
+        
+        return sta_stacks
+
         
     def get_sync_infos(self):
         """
