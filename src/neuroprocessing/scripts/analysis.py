@@ -1,25 +1,25 @@
 import json
-from natsort import natsorted
-from neuroprocessing.scripts.parse_csv import parse_csv, process_data
-from neuroprocessing.align import StackAligner
-import numpy as np
 from pathlib import Path
-import pandas as pd
+
+import numpy as np
+from natsort import natsorted
+from neuroprocessing.align import StackAligner
+from neuroprocessing.scripts.parse_csv import parse_csv, process_data
 from scipy import ndimage
-from scipy.signal import spectrogram
 from scipy.interpolate import CubicSpline
-from scipy.signal import find_peaks
+from scipy.signal import find_peaks, spectrogram
 from skimage import io
 from skimage.measure import block_reduce
 from skimage.segmentation import flood
 
+
 def compute_breathing_rate(signal: np.array, fs:float) -> np.array:
     """Compute breathing rate from signal using spectrogram. Not currently being used in the pipeline.
 
-    Args:
+    Inputs:
         signal (np.ndarray): 1D array of signal
         fs (float): sampling frequency
-    
+
     Returns:
         np.array: 1D numpy array of breathing rate, interpolated to be the same length as signal
     """
@@ -77,7 +77,7 @@ def compute_breathing_rate(signal: np.array, fs:float) -> np.array:
 
 def _identify_trial_save_paths(exp_dir:str, trial_dir:str, params:dict) -> tuple:
     """Identify the paths to the raw and processed tiff stacks for a single trial
-    
+
     Inputs:
         exp_dir: str
             Name of the experiment directory e.g. "2024-03-06"
@@ -122,9 +122,9 @@ def _get_sync_info(sync_csv_path, col_stim = 'button'):
 
     # stim_onset_frame = int(df_frames.loc[df_frames["stimulated"], "frame"].iloc[0])
     df_frames.set_index("frame", inplace=True)
-    
+
     stim_onset_frame = df_frames['stimulated'].diff().values
-    stim_onset_frame = np.where(stim_onset_frame == True)[0].tolist()
+    stim_onset_frame = np.where(stim_onset_frame == True)[0].tolist()  # noqa: E712
 
     n_stims = len(stim_onset_frame)
     print(f"Stimulus onset frame: {stim_onset_frame}")
@@ -144,7 +144,7 @@ def _get_sync_info(sync_csv_path, col_stim = 'button'):
     print(f"Stimulus duration (overall) (frames): {stim_duration_frames}")
     print(f"Stimulus duration (overall) (s): {stim_duration_frames/framerate_hz}")
     print(f"Frame duration (ms): {frame_time_s*1000}")
-    print(f"Framerate (Hz): %.2f" % (framerate_hz))
+    print("Framerate (Hz): %.2f" % (framerate_hz))
 
     return sync_info
 
@@ -164,27 +164,28 @@ def _get_brain_mask(stack, flood_connectivity=20, flood_tolerance=1000):
 
 def process_trial(exp_dir:str, trial_dir:str, params:dict):
     """Process single trial
-    
-    Process a single imaging trial and save the processed tiff stack to the same directory as the original tiff stack.
-    
+
+    Process a single imaging trial and save the processed tiff stack to the same directory as the 
+    original tiff stack.
+
     Inputs:
-        exp_dir: str 
+        exp_dir: str
             Experiment dir e.g. "2024-03-06"
-        trial_dir: str 
+        trial_dir: str
             Trial dir e.g. "Zyla_15min_LHL_salineinj_1pt75pctISO_1"
         params: dict
             Parameters of the run (see `run_analysis.py`)
     """
 
-    trial_path, save_path = _identify_trial_save_paths(exp_dir, trial_dir, params)
+    _, save_path = _identify_trial_save_paths(exp_dir, trial_dir, params)
 
     # load sync json if exists
     if (save_path / "sync_info.json").exists():
-        with open(save_path / "sync_info.json", "r") as f:
+        with open(save_path / "sync_info.json") as f:
             sync_info = json.load(f)
     else:
         raise FileNotFoundError(f"Error: No sync file found in {save_path}")
-    
+
     # load pre-processed tiff stack
     fp_processed_tif = save_path / (params["preprocess_prefix"] + trial_dir + ".tif")
     if not fp_processed_tif.exists():
@@ -199,10 +200,16 @@ def process_trial(exp_dir:str, trial_dir:str, params:dict):
     frames_before_stim = int(params["secs_before_stim"] * sync_info["framerate_hz"])
     stack = stack[int((sync_info["stim_onset_frame"][0] - frames_before_stim)/params['downsample_factor']):, :, :]
 
-    mask = _get_brain_mask(stack, flood_connectivity=params["flood_connectivity"], flood_tolerance=params["flood_tolerance"])
-    
+    mask = _get_brain_mask(stack,
+                           flood_connectivity=params["flood_connectivity"],
+                           flood_tolerance=params["flood_tolerance"])
+
     # find bottom X% of pixels in brain
-    bottomX = np.percentile(stack[:, mask], params['bottom_percentile'], axis=1, keepdims=True).astype(np.uint16)
+    bottomX = np.percentile(stack[:, mask],
+                            params['bottom_percentile'],
+                            axis=1,
+                            keepdims=True
+                            ).astype(np.uint16)
 
     # subtract bottom X% from all pixels (bleach correction)
     stack -= bottomX[:,np.newaxis]
@@ -211,10 +218,13 @@ def process_trial(exp_dir:str, trial_dir:str, params:dict):
 
     # set pixels outside of mask to 0
     stack[:, ~mask] = 0
-    
+
     # save mask
     np.save(save_path / ('mask_' + params["process_prefix"] + trial_dir + '.npy'), mask)
-    
+
+    # save params
+    with open(save_path / "params.json", "w") as f:
+        json.dump(params, f)
     # save tiff stack with the name of the first tiff in the stack
     io.imsave(save_path / (params["process_prefix"] + trial_dir + '.tif'), stack)
 
@@ -226,12 +236,14 @@ def preprocess_trial(exp_dir:str, trial_dir:str, params:dict):
         1. Load the tiff stack (or stacks if there are multiple due to file size limits)
         2. Downsample the tiff stack
         3. Motion correction using `StackAligner`
-    
-        Notes: 
-            - Tiff stacks with MMStack in the name will be processed and concatenated if there are multiple. imread is used with `is_ome=False` and `is_mmstack=False` to make sure it doesn't try to read the OME metadata and load the entire file sequence
+
+        Notes:
+            - Tiff stacks with MMStack in the name will be processed and concatenated if there are
+              multiple. imread is used with `is_ome=False` and `is_mmstack=False` to make sure it
+              doesn't try to read the OME metadata and load the entire file sequence
         Usage:
             preprocess_trial("2024-03-06", "Zyla_15min_LHL_salineinj_1pt75pctISO_1", params)
-        
+
     Inputs:
         exp_dir: str 
             Experiment dir e.g. "2024-03-06"
@@ -240,12 +252,12 @@ def preprocess_trial(exp_dir:str, trial_dir:str, params:dict):
         params: dict
             Parameters of the run (see `run_analysis.py`)
     """
-    
+
     trial_path, save_path = _identify_trial_save_paths(exp_dir, trial_dir, params)
 
     fp_tifs = natsorted(Path(trial_path).glob("*MMStack*.tif"))
     fp_csv = natsorted(Path(trial_path).glob("*.csv"))
-    
+
     if len(fp_csv) == 0:
         print(f"No sync file found in {trial_path}")
     else:
@@ -253,19 +265,19 @@ def preprocess_trial(exp_dir:str, trial_dir:str, params:dict):
         # save sync info as json
         with open(save_path / "sync_info.json", "w") as f:
             json.dump(sync_info, f)
-    
+
     stack_list = []
     for fp_tif in fp_tifs:
         stack_list.append(io.imread(fp_tif, is_ome=False, is_mmstack=False))
 
     if stack_list == []:
         raise FileNotFoundError(f"No tiff files found in {trial_path}")
-    
-    # Downsample image
-    stack_downsampled = block_reduce(np.concatenate(stack_list, axis=0), block_size=(params['downsample_factor'], 1, 1), func=np.mean)
 
-    # temporarily save downsampled stack
-    # io.imsave(save_path / ("downsampled_" + trial_dir + ".tif"), stack_downsampled.astype(np.uint16))
+    # Downsample image
+    stack_downsampled = block_reduce(np.concatenate(stack_list, axis=0),
+                                     block_size=(params['downsample_factor'], 1, 1),
+                                     func=np.mean)
+
     del(stack_list)
 
     aligner = StackAligner(
@@ -273,15 +285,19 @@ def preprocess_trial(exp_dir:str, trial_dir:str, params:dict):
             target_num_features = params["aligner_target_num_features"]
         )
     aligner.align()
-    
+
     # save aligned stack
     stack_aligned = aligner.stack_aligned
 
-    io.imsave(save_path / (params["preprocess_prefix"] + trial_dir + ".tif"), stack_aligned.astype(np.uint16))
+    # save params
+    with open(save_path / "params.json", "w") as f:
+        json.dump(params, f)
+    io.imsave(save_path / (params["preprocess_prefix"] + trial_dir + ".tif"),
+              stack_aligned.astype(np.uint16))
 
 def preprocess_and_process_trial(exp_dir:str, trial_dir:str, params:dict):
     """Preprocess and process a single trial
-    
+
     Inputs:
         exp_dir: str 
             Experiment dir e.g. "2024-03-06"
@@ -292,4 +308,3 @@ def preprocess_and_process_trial(exp_dir:str, trial_dir:str, params:dict):
     """
     preprocess_trial(exp_dir, trial_dir, params)
     process_trial(exp_dir, trial_dir, params)
-

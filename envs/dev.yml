@@ -1,15 +1,16 @@
 name: neuro
 channels:
   - defaults
+  - conda-forge
 dependencies:
   - python=3.11
   - scikit-image==0.22.0
   - ipykernel
-  - conda-forge::matplotlib
+  - matplotlib
   - pandas
   - path
   - pathlib
   - natsort
-  - conda-forge::tqdm
+  - tqdm
   - scipy=1.12.0
 prefix: /Users/ilya_arcadia/miniconda3/envs/neuro

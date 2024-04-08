@@ -1,8 +1,5 @@
 {
-    "sync_csv_col": "button",
-    "downsample_factor": 8,
     "aligner_target_num_features": 700,
-    "secs_before_stim": 60,
     "preprocess_prefix": "aligned_downsampled_",
     "process_prefix": "processed_",
     "s3fs_toplvl_path": "/Users/ilya_arcadia/arcadia-neuroimaging-pruritogens/Videos",

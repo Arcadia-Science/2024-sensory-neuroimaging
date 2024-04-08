@@ -29,7 +29,7 @@ pip install -e .
 
 ## Neuroimaging analysis pipeline
 
-This pipeline is designed to preprocess and analyze data *in vivo* brain imaging data collected with a widefield microscope. Included in the pipeline are the following steps:
+This pipeline is designed to preprocess and analyze *in vivo* brain imaging data collected with a widefield microscope. Included in the pipeline are the following steps:
 
 * Preprocessing (`preprocess_trial` in `src/neuroprocessing/scripts/analysis.py`)
     * Load TIFF stack of raw imaging data, concatenate stacks if needed
@@ -50,12 +50,12 @@ This pipeline is designed to preprocess and analyze data *in vivo* brain imaging
 Assumed file structure
 * Raw imaging and NIDAQ sync data is stored in S3 buckets that are accessible using [S3FS](https://github.com/s3fs-fuse/s3fs-fuse). Follow instructions on S3FS to mount the S3 bucket to a local directory.
 * File structure is assumed to be `{top-level exp dir}/{exp date}/{trial dir}/{Tiff stacks and nidaq CSV files here}`
-* Tiff stack filenames are assumed to be in the form: `Zyla_5min_LHLstim_2son4soff_1pt75pctISO_1` where:
-    * `Zyla` is the camera name
-    * `5min` is the duration of the trial
-    * `LHLstim` is the type of stimulus (left hindlimb stimulation)
-    * `2son4soff` is the stimulus pattern (2 seconds on, 4 seconds off) or, if injection, injection type (e.g. `saline`, `histamine`)
-    * `1pt75pctISO` iso concentration (but can be other notes)
+* Tiff stack filenames are assumed to be in the form: `{camera}_{duration}_{stimulus_location}_{stimulus_pattern}_{notes}` where:
+    * `camera` e.g. `Zyla` is the camera name
+    * `duration` e.g. `5min` is the duration of the trial
+    * `stimulus_location` e.g. `LHLstim` is the type of stimulus (left hindlimb stimulation)
+    * `stimulus_pattern` e.g. `2son4soff` is the stimulus pattern (2 seconds on, 4 seconds off) or, if injection, injection type (e.g. `saline`, `histamine`)
+    * `notes` e.g. `1pt75pctISO` iso concentration (but can be other notes)
 
 1. Copy the raw folder names for the trials that you want to analyze from the top-level S3 dir to a local directory, e.g. `data/2024-03-06/`
 2. Adjust default parameters in `analysis_runs/default_analysis_params.json` if needed

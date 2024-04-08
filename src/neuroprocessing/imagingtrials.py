@@ -1,6 +1,10 @@
-import re, os, json
+import json
+import os
+import re
+
 import numpy as np
 import skimage.io as io
+
 
 class ImagingTrialLoader:
     """
@@ -35,27 +39,29 @@ class ImagingTrialLoader:
 
     def __len__(self):
         return len(self.filtered_exp_dirs)
-    
+
     def collect_exps_and_trials(self):
         """Collects all experiment and trial directories from the base path."""
         exps = []
         trials = []
-        
+
         # List directories at the first level (exps)
-        exp_dirs = [d for d in os.listdir(self.base_path) if os.path.isdir(os.path.join(self.base_path, d))]
-        
+        exp_dirs = [d for d in os.listdir(self.base_path) 
+                    if os.path.isdir(os.path.join(self.base_path, d))]
+
         for exp in exp_dirs:
             # Path to the date directory
             exp_dir_path = os.path.join(self.base_path, exp)
-            
+
             # List directories at the second level (trials)
-            trial_dirs = [d for d in os.listdir(exp_dir_path) if os.path.isdir(os.path.join(exp_dir_path, d))]
-            
+            trial_dirs = [d for d in os.listdir(exp_dir_path) 
+                          if os.path.isdir(os.path.join(exp_dir_path, d))]
+
             # Append date and exp information
             for trial in trial_dirs:
                 exps.append(exp)
                 trials.append(trial)
-        
+
         return exps, trials
 
     def parse_filename(self, exp_dir, trial_dir):
@@ -67,7 +73,7 @@ class ImagingTrialLoader:
             injection_type = tokens[3]
             # If there are more tokens, append them to the remainder
             remainder = "_".join(tokens[4:])
-            
+
             return {"exp_dir": exp_dir, "camera": camera, "rec_time": rec_time, "limb": limb, "injection_type": injection_type, "remainder": remainder}
 
     def filter_exp_and_trial_dirs(self, **criteria):
@@ -84,14 +90,17 @@ class ImagingTrialLoader:
         self.filtered_trial_dirs = loaded_trial_dirs
         print(f"Loaded {len(loaded_exp_dirs)} trials.")
         return loaded_exp_dirs, loaded_trial_dirs
-    
+
     def load_mask_files(self):
         """
         Loads "mask.npy" files for all (optinally filtered) trials.
         """
         masks = []
-        for e,t in zip(self.filtered_exp_dirs, self.filtered_trial_dirs):
-            mask_path = os.path.join(self.base_path, e, t, "mask_" + self.params['process_prefix'] + t + ".npy")
+        for e,t in zip(self.filtered_exp_dirs, self.filtered_trial_dirs, strict=True):
+            mask_path = os.path.join(self.base_path,
+                                     e,
+                                     t,
+                                     "mask_" + self.params['process_prefix'] + t + ".npy")
 
             print(f"Loading mask file from: {mask_path}")
 
@@ -106,7 +115,7 @@ class ImagingTrialLoader:
         Loads "traces.npy" files for all (optinally filtered) trials.
         """
         traces = []
-        for e,t,m in zip(self.filtered_exp_dirs, self.filtered_trial_dirs, self.masks):
+        for e,t,m in zip(self.filtered_exp_dirs, self.filtered_trial_dirs, self.masks, strict=True):
             processed_stack = io.imread(os.path.join(self.base_path, e, t, (self.params['process_prefix'] + t + ".tif")))
             trace = np.mean(processed_stack[:,m], axis=1)
             traces.append(trace)
@@ -115,26 +124,39 @@ class ImagingTrialLoader:
         print(f"Loaded {len(traces)} traces.")
         return traces
 
-    def plot_montage(self, s_start:int, s_end:int, s_step=1, montage_hw = (5,20), montage_grid_shape=None):
+    def plot_montage(self,
+                     s_start:int,
+                     s_end:int,
+                     s_step=1,
+                     montage_hw = (5,20),
+                     montage_grid_shape=None):
         """
         Plots a montage of all (optinally filtered) trials.
         """
-        from skimage.util import montage
         import matplotlib.pyplot as plt
+        from skimage.util import montage
 
         n_trials = len(self) # plot montage for each trial
         sync_infos = self.get_sync_infos()
         print(n_trials)
-        f, axs = plt.subplots(n_trials, 1, figsize=(montage_hw[0]*n_trials, montage_hw[1]), squeeze=False)
-        for i, (e,t, si) in enumerate(zip(self.filtered_exp_dirs, self.filtered_trial_dirs, sync_infos)):
-            processed_stack = io.imread(os.path.join(self.base_path, e, t, (self.params['process_prefix'] + t + ".tif")))
+        f, axs = plt.subplots(nrows=n_trials,
+                              ncols=1,
+                              figsize=(montage_hw[0]*n_trials, montage_hw[1]), squeeze=False)
+        for i, (e,t, si) in enumerate(zip(self.filtered_exp_dirs,
+                                          self.filtered_trial_dirs,
+                                          sync_infos,
+                                          strict=True)):
+            processed_stack = io.imread(os.path.join(self.base_path,
+                                                     e,
+                                                     t,
+                                                     self.params['process_prefix'] + t + ".tif"))
             # get first frame closest to s_start
             downsampled_rate = (si['framerate_hz'] / self.params['downsample_factor'])
-            frame_start, frame_end, frame_step = [int(downsampled_rate * s) for s in [s_start, s_end, s_step]]
+            frame_start, frame_end, frame_step = (int(downsampled_rate * s) for s in [s_start, s_end, s_step])
             n_frames = (frame_end - frame_start) // frame_step
             print(f"Frame start: {frame_start}, Frame end: {frame_end}, Frame step: {frame_step}, N frames: {n_frames}")
             montage_stack = processed_stack[frame_start:frame_end:frame_step,:,:]
-            axs[i][0].imshow(montage(montage_stack, 
+            axs[i][0].imshow(montage(montage_stack,
                                  fill = 0,
                                  padding_width = 20,
                                  rescale_intensity=False,
@@ -146,42 +168,46 @@ class ImagingTrialLoader:
         plt.tight_layout()
 
         return f
-    
-    def get_sta_stacks(self, s_pre_stim = 1, s_post_stim = 5):
+
+    def get_sta_stacks(self, s_pre_stim = 1, s_post_stim = 5)->list:
         """
-        Return a list of stimulus-triggered average stacks [n_trials x n_frames x h x w] for all (optinally filtered) trials.
+        Return a list of stimulus-triggered average stacks [n_trials x n_frames x h x w] for
+        all (optinally filtered) trials.
 
         Inputs:
             s_pre_stim: int
                 Number of seconds before stimulus onset to include in the stack.
             s_post_stim: int
                 Number of seconds after stimulus onset to include in the stack.
-        
+
         """
 
         sync_infos = self.get_sync_infos()
 
         sta_stacks = []
-        for i, (e,t, si) in enumerate(zip(self.filtered_exp_dirs, self.filtered_trial_dirs, sync_infos)):
-            processed_stack = io.imread(os.path.join(self.base_path, e, t, (self.params['process_prefix'] + t + ".tif")))
+        for e,t, si in zip(self.filtered_exp_dirs, self.filtered_trial_dirs, sync_infos, strict=True):
+            processed_stack = io.imread(os.path.join(self.base_path,
+                                                     e,
+                                                     t,
+                                                     (self.params['process_prefix'] + t + ".tif")))
 
             downsampled_rate = (si['framerate_hz'] / self.params['downsample_factor'])
-            frame_pre_stim, frame_post_stim = [int(downsampled_rate * s) for s in [s_pre_stim, s_post_stim]]
+            frame_pre_stim, frame_post_stim = (int(downsampled_rate * s) for s in [s_pre_stim, s_post_stim])
             stim_onsets_downsampled = [int(sof // self.params['downsample_factor']) for sof in si['stim_onset_frame']]
+
             sta_stack = np.stack([processed_stack[sof-frame_pre_stim:sof+frame_post_stim, :,:] for sof in stim_onsets_downsampled[1:-2]])
             sta_stacks.append(sta_stack)
-        
+
         return sta_stacks
 
-        
     def get_sync_infos(self):
         """
         Loads "sync_info.json" files for all (optinally filtered) trials.
         """
         sync_infos = []
-        for e,t in zip(self.filtered_exp_dirs, self.filtered_trial_dirs):
+        for e,t in zip(self.filtered_exp_dirs, self.filtered_trial_dirs, strict=True):
             sync_info_path = os.path.join(self.base_path, e, t, "sync_info.json")
-            with open(sync_info_path, "r") as f:
+            with open(sync_info_path) as f:
                 sync_info = json.load(f)
             sync_infos.append(sync_info)
         print(f"Loaded {len(sync_infos)} sync infos.")
