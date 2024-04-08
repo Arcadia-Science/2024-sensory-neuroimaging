@@ -6,6 +6,7 @@ import numpy as np
 import skimage.io as io
 
 
+#@TODO: refactor into a single ImagingTrial class with a higher level ImagingTrialLoader
 class ImagingTrialLoader:
     """
     Class to load imaging trials and their associated artifacts from a directory structure.
@@ -74,14 +75,15 @@ class ImagingTrialLoader:
             # If there are more tokens, append them to the remainder
             remainder = "_".join(tokens[4:])
 
-            return {"exp_dir": exp_dir, "camera": camera, "rec_time": rec_time, "limb": limb, "injection_type": injection_type, "remainder": remainder}
+            return {"exp_dir": exp_dir, "camera": camera, "rec_time": rec_time, "limb": limb,
+                    "injection_type": injection_type, "remainder": remainder}
 
     def filter_exp_and_trial_dirs(self, **criteria):
         """Filter  trials based on criteria (wildcards allowed).
         """
         loaded_exp_dirs = []
         loaded_trial_dirs = []
-        for exp_dir, trial_dir in zip(self.exp_dirs, self.trial_dirs):
+        for exp_dir, trial_dir in zip(self.exp_dirs, self.trial_dirs, strict=True):
             file_metadata = self.parse_filename(exp_dir, trial_dir)
             if all(re.match(value, file_metadata[key]) for key, value in criteria.items()):
                 loaded_trial_dirs.append(trial_dir)

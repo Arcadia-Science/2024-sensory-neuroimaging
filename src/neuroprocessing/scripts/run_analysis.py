@@ -59,6 +59,8 @@ if __name__ == '__main__':
     parser.add_argument('--flood_tolerance', type=int,
                         default=default_params.get('flood_tolerance'),
                         help='Tolerance setting for flood-filling algorithm (skimage.segmentation.flood) to identify brain mask.')
+    parser.add_argument('--reanalyze', action='store_true',
+                        help='If True, reanalyze all trials, even if already processed. Processed folders have a params.json file.')
 
     args = parser.parse_args()
 
@@ -81,5 +83,6 @@ if __name__ == '__main__':
         params['downsample_factor'] = 2 if is_tactile_stim_trial else 8
         params['secs_before_stim'] = 0 if is_tactile_stim_trial else 60
 
-
-        preprocess_and_process_trial(args.date, trial_dir.name, params)
+        if args.reanalyze or not (trial_dir / 'params.json').exists(): # Skip if already processed
+            print(f"Processing {trial_dir.name}...")
+            preprocess_and_process_trial(args.date, trial_dir.name, params)
