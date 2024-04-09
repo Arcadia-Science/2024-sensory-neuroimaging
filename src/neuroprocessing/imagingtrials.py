@@ -197,7 +197,7 @@ class ImagingTrialLoader:
             frame_pre_stim, frame_post_stim = (int(downsampled_rate * s) for s in [s_pre_stim, s_post_stim])
             stim_onsets_downsampled = [int(sof // self.params['downsample_factor']) for sof in si['stim_onset_frame']]
 
-            sta_stack = np.stack([processed_stack[sof-frame_pre_stim:sof+frame_post_stim, :,:] for sof in stim_onsets_downsampled[1:-2]])
+            sta_stack = np.stack([processed_stack[sof-frame_pre_stim:sof+frame_post_stim, :,:] for sof in stim_onsets_downsampled[1:-1]])
             sta_stacks.append(sta_stack)
 
         return sta_stacks
