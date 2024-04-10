@@ -6,48 +6,199 @@ import numpy as np
 import skimage.io as io
 
 
-#@TODO: refactor into a single ImagingTrial class with a higher level ImagingTrialLoader
+class ImagingTrial:
+    """
+    Class to represent an imaging trial and its associated artifacts.
+    """
+
+    def __init__(self, base_path, exp_dir, trial_dir):
+        """
+        Initialize the ImagingTrial with a base_path, exp_dir, trial_dir
+        """
+        self.exp_dir = exp_dir
+        self.trial_dir = trial_dir
+        self.base_path = base_path
+        self.params = self._load_params()
+        self.mask = None
+
+    def __repr__(self):
+        return f"ImagingTrial({self.exp_dir}, {self.trial_dir})"
+
+    def __str__(self):
+        return f"ImagingTrial: {self.exp_dir} - {self.trial_dir}"
+
+    def _load_params(self):
+        """
+        Load the params metadata file for the trial.
+        """
+        params_path = os.path.join(self.base_path, self.exp_dir, self.trial_dir, "params.json")
+        if not os.path.exists(params_path):
+            print('Warning: No params file found for trial: ', self.trial_dir)
+            return None
+        with open(params_path) as f:
+            params = json.load(f)
+        return params
+
+    def _parse_filename(self):
+        """Parse a filepath into its components."""
+        tokens = self.trial_dir.split("_")
+        camera = tokens[0]
+        rec_time = tokens[1]
+        limb = tokens[2]
+        injection_type = tokens[3]
+        # If there are more tokens, append them to the remainder
+        remainder = "_".join(tokens[4:])
+
+        return {"exp_dir": self.exp_dir, "trial_dir":self.trial_dir, "camera": camera,
+                "rec_time": rec_time, "limb": limb,
+                "injection_type": injection_type, "remainder": remainder
+                }
+
+    def _load_processed_stack(self):
+        """
+        Loads the processed stack
+        """
+        processed_stack_path = os.path.join(self.base_path,
+                                            self.exp_dir,
+                                            self.trial_dir,
+                                            self.params['process_prefix'] + self.trial_dir + ".tif")
+        processed_stack = io.imread(processed_stack_path)
+        return processed_stack
+
+    def _get_sync_info(self):
+        """
+        Loads the "sync_info.json" file for the trial.
+        """
+        sync_info_path = os.path.join(self.base_path, self.exp_dir, self.trial_dir, "sync_info.json")
+        with open(sync_info_path) as f:
+            sync_info = json.load(f)
+        return sync_info
+
+    def load_trace(self):
+        """
+        Loads the "traces.npy" file for the trial.
+        """
+        mask = self.load_mask()
+
+        processed_stack = self._load_processed_stack()
+        trace = np.mean(processed_stack[:,mask], axis=1)
+        return trace
+
+    def match_exp_criteria(self, **criteria):
+        """Match trial against criteria."""
+        file_metadata = self._parse_filename()
+        match = all(re.match(value, file_metadata[key]) for key, value in criteria.items())
+        return match
+
+    def load_mask(self):
+        """
+        Loads the "mask.npy" file for the trial.
+        """
+        mask_path = os.path.join(self.base_path,
+                                 self.exp_dir,
+                                 self.trial_dir,
+                                 "mask_" + self.params['process_prefix'] + self.trial_dir + ".npy")
+
+        print(f"Loading mask file from: {mask_path}")
+
+        mask = np.load(mask_path)
+        return mask
+
+    def plot_montage(self, s_start:int, s_end:int, s_step=1, montage_hw = (5,20), montage_grid_shape=None):
+        """
+        Plots a montage of the trial.
+        """
+        import matplotlib.pyplot as plt
+        from skimage.util import montage
+
+        sync_info = self._get_sync_info()
+        processed_stack = io.imread(os.path.join(self.base_path,
+                                                 self.exp_dir,
+                                                 self.trial_dir,
+                                                 self.params['process_prefix'] + self.trial_dir + ".tif"))
+        # get first frame closest to s_start
+        downsampled_rate = (sync_info['framerate_hz'] / self.params['downsample_factor'])
+        frame_start, frame_end, frame_step = (int(downsampled_rate * s) for s in [s_start, s_end, s_step])
+        n_frames = (frame_end - frame_start) // frame_step
+        print(f"Frame start: {frame_start}, Frame end: {frame_end}, Frame step: {frame_step}, N frames: {n_frames}")
+        montage_stack = processed_stack[frame_start:frame_end:frame_step,:,:]
+        plt.imshow(montage(montage_stack,
+                           fill = 0,
+                           padding_width = 20,
+                           rescale_intensity=False,
+                           grid_shape= montage_grid_shape
+                           ))
+        plt.title(f"{self.exp_dir} - {self.trial_dir}")
+        plt.axis("off")
+        plt.show()
+
+    def get_sta_avg(self):
+        """ Return stimulus-triggered average for all trials"""
+        sync_info = self._get_sync_info()
+        processed_stack = self._load_processed_stack()
+
+        # assume that stim duration is stim_duration_frames / # stimulations / downsample_factor
+        #@TODO: this may not be the case for all trials in the future e.g. if stimulation epochs have different durations
+        stim_duration_frames = sync_info['stim_duration_frames'] // sync_info['Number of stimulations'] // self.params['downsample_factor']
+        stim_onsets_downsampled = [int(sof // self.params['downsample_factor']) for sof in sync_info['stim_onset_frame']]
+
+        #@TODO: this assumes that the baseline duration = stim duration, which is not true
+        stack_base = np.stack(processed_stack[sof - stim_duration_frames:sof,:,:] for sof in stim_onsets_downsampled[1:-1])
+        stack_stim = np.stack(processed_stack[sof:sof+stim_duration_frames,:,:] for sof in stim_onsets_downsampled[1:-1])
+
+        stack_diff = (stack_stim - stack_base).mean(axis=(0,1))
+        return stack_diff
+
+    def get_sta_stack(self, s_pre_stim = 1, s_post_stim = 5):
+        """
+        Return a stimulus-triggered average stack [n_frames x h x w] for the trial.
+
+        Inputs:
+            s_pre_stim: int
+                Number of seconds before stimulus onset to include in the stack.
+            s_post_stim: int
+                Number of seconds after stimulus onset to include in the stack.
+
+        """
+        sync_info = self._get_sync_info()
+        processed_stack = self._load_processed_stack()
+
+        downsampled_rate = (sync_info['framerate_hz'] / self.params['downsample_factor'])
+        frame_pre_stim, frame_post_stim = (int(downsampled_rate * s) for s in [s_pre_stim, s_post_stim])
+        stim_onsets_downsampled = [int(sof // self.params['downsample_factor']) for sof in sync_info['stim_onset_frame']]
+
+        sta_stack = np.stack([processed_stack[sof-frame_pre_stim:sof+frame_post_stim, :,:] for sof in stim_onsets_downsampled[1:-1]])
+        return sta_stack
+
+
 class ImagingTrialLoader:
     """
     Class to load imaging trials and their associated artifacts from a directory structure.
     """
 
-    def __init__(self, params):
-        """
-        Initialize the ImagingTrialLoader with params metadata file (generated from run_analysis).
+    def __init__(self, base_path):
+        self.base_path = base_path
+        exp_dirs, trial_dirs = self.collect_exps_and_trials()
 
-        Example params:
-            params = {
-                "downsample_factor": 8,
-                "aligner_target_num_features": 700,
-                "secs_before_stim": 60, # only process frames starting at X seconds before stimulus
-                "preprocess_prefix": "aligned_downsampled_",
-                "process_prefix": 'processed_',
-                "s3fs_toplvl_path": "/Users/ilya_arcadia/arcadia-neuroimaging-pruritogens/Videos",
-                "local_toplvl_path": "/Users/ilya_arcadia/Neuroimaging_local/Processed/Injections/",
-                "load_from_s3": True,
-                "save_to_s3": False,
-                'crop_px' : 20,
-                'bottom_percentile' : 5
-                }
-        """
-        self.params = params
-        self.base_path = params['s3fs_toplvl_path'] if params['load_from_s3'] else params['local_toplvl_path']
-        self.exp_dirs, self.trial_dirs = self.collect_exps_and_trials()
-        self.filtered_exp_dirs = self.exp_dirs
-        self.filtered_trial_dirs = self.trial_dirs
-        self.masks = []
+        self.trials = [ImagingTrial(base_path, e,t) for e,t in zip(exp_dirs, trial_dirs, strict=True)]
+        print(f"Initialized with {len(self)} trials.")
 
     def __len__(self):
-        return len(self.filtered_exp_dirs)
+        return len(self.trials)
 
+    def __repr__(self) -> str:
+        return f"ImagingTrialLoader({self.base_path})"
+
+    def __iter__(self):
+        return iter(self.trials)
+    
     def collect_exps_and_trials(self):
         """Collects all experiment and trial directories from the base path."""
         exps = []
         trials = []
 
         # List directories at the first level (exps)
-        exp_dirs = [d for d in os.listdir(self.base_path) 
+        exp_dirs = [d for d in os.listdir(self.base_path)
                     if os.path.isdir(os.path.join(self.base_path, d))]
 
         for exp in exp_dirs:
@@ -65,152 +216,43 @@ class ImagingTrialLoader:
 
         return exps, trials
 
-    def parse_filename(self, exp_dir, trial_dir):
-            """Parse a filepath into its components."""
-            tokens = trial_dir.split("_")
-            camera = tokens[0]
-            rec_time = tokens[1]
-            limb = tokens[2]
-            injection_type = tokens[3]
-            # If there are more tokens, append them to the remainder
-            remainder = "_".join(tokens[4:])
 
-            return {"exp_dir": exp_dir, "camera": camera, "rec_time": rec_time, "limb": limb,
-                    "injection_type": injection_type, "remainder": remainder}
-
-    def filter_exp_and_trial_dirs(self, **criteria):
-        """Filter  trials based on criteria (wildcards allowed).
+    def filter(self, **criteria):
+        """Filter  ImagingTrials based on criteria (wildcards allowed).
         """
-        loaded_exp_dirs = []
-        loaded_trial_dirs = []
-        for exp_dir, trial_dir in zip(self.exp_dirs, self.trial_dirs, strict=True):
-            file_metadata = self.parse_filename(exp_dir, trial_dir)
-            if all(re.match(value, file_metadata[key]) for key, value in criteria.items()):
-                loaded_trial_dirs.append(trial_dir)
-                loaded_exp_dirs.append(exp_dir)
-        self.filtered_exp_dirs = loaded_exp_dirs
-        self.filtered_trial_dirs = loaded_trial_dirs
-        print(f"Loaded {len(loaded_exp_dirs)} trials.")
-        return loaded_exp_dirs, loaded_trial_dirs
+        trials_filt = [t for t in self.trials if t.match_exp_criteria(**criteria)]
+        self.trials = trials_filt
+        print(f"Filtered to {len(self)} trials.")
 
-    def load_mask_files(self):
+
+    def get_masks(self):
         """
         Loads "mask.npy" files for all (optinally filtered) trials.
         """
-        masks = []
-        for e,t in zip(self.filtered_exp_dirs, self.filtered_trial_dirs, strict=True):
-            mask_path = os.path.join(self.base_path,
-                                     e,
-                                     t,
-                                     "mask_" + self.params['process_prefix'] + t + ".npy")
-
-            print(f"Loading mask file from: {mask_path}")
-
-            mask = np.load(mask_path)
-            masks.append(mask)
-        self.masks = masks
-        print(f"Loaded {len(masks)} masks.")
+        masks = [m for m in self.trials.load_mask()]
+        if len(masks) == 0:
+            raise ValueError("No masks found.")
         return masks
 
     def load_traces(self):
         """
         Loads "traces.npy" files for all (optinally filtered) trials.
         """
-        traces = []
-        for e,t,m in zip(self.filtered_exp_dirs, self.filtered_trial_dirs, self.masks, strict=True):
-            processed_stack = io.imread(os.path.join(self.base_path, e, t, (self.params['process_prefix'] + t + ".tif")))
-            trace = np.mean(processed_stack[:,m], axis=1)
-            traces.append(trace)
+        traces = [t for t in self.trials.load_trace()]
         if len(traces) == 0:
-            raise ValueError("No masks loaded. Please load masks first using `load_mask_files()`.")
-        print(f"Loaded {len(traces)} traces.")
+            raise ValueError("No traces found.")
         return traces
 
-    def plot_montage(self,
-                     s_start:int,
-                     s_end:int,
-                     s_step=1,
-                     montage_hw = (5,20),
-                     montage_grid_shape=None):
+    def get_sta_stacks(self, s_pre_stim = 1, s_post_stim = 5):
         """
-        Plots a montage of all (optinally filtered) trials.
+        Return stimulus-triggered average stacks for all trials.
         """
-        import matplotlib.pyplot as plt
-        from skimage.util import montage
-
-        n_trials = len(self) # plot montage for each trial
-        sync_infos = self.get_sync_infos()
-        print(n_trials)
-        f, axs = plt.subplots(nrows=n_trials,
-                              ncols=1,
-                              figsize=(montage_hw[0]*n_trials, montage_hw[1]), squeeze=False)
-        for i, (e,t, si) in enumerate(zip(self.filtered_exp_dirs,
-                                          self.filtered_trial_dirs,
-                                          sync_infos,
-                                          strict=True)):
-            processed_stack = io.imread(os.path.join(self.base_path,
-                                                     e,
-                                                     t,
-                                                     self.params['process_prefix'] + t + ".tif"))
-            # get first frame closest to s_start
-            downsampled_rate = (si['framerate_hz'] / self.params['downsample_factor'])
-            frame_start, frame_end, frame_step = (int(downsampled_rate * s) for s in [s_start, s_end, s_step])
-            n_frames = (frame_end - frame_start) // frame_step
-            print(f"Frame start: {frame_start}, Frame end: {frame_end}, Frame step: {frame_step}, N frames: {n_frames}")
-            montage_stack = processed_stack[frame_start:frame_end:frame_step,:,:]
-            axs[i][0].imshow(montage(montage_stack,
-                                 fill = 0,
-                                 padding_width = 20,
-                                 rescale_intensity=False,
-                                 grid_shape= montage_grid_shape
-                                 ))
-            axs[i][0].set_title(f"{e} - {t}")
-            axs[i][0].axis("off")
-
-        plt.tight_layout()
-
-        return f
-
-    def get_sta_stacks(self, s_pre_stim = 1, s_post_stim = 5)->list:
-        """
-        Return a list of stimulus-triggered average stacks [n_trials x n_frames x h x w] for
-        all (optinally filtered) trials.
-
-        Inputs:
-            s_pre_stim: int
-                Number of seconds before stimulus onset to include in the stack.
-            s_post_stim: int
-                Number of seconds after stimulus onset to include in the stack.
-
-        """
-
-        sync_infos = self.get_sync_infos()
-
-        sta_stacks = []
-        for e,t, si in zip(self.filtered_exp_dirs, self.filtered_trial_dirs, sync_infos, strict=True):
-            processed_stack = io.imread(os.path.join(self.base_path,
-                                                     e,
-                                                     t,
-                                                     (self.params['process_prefix'] + t + ".tif")))
-
-            downsampled_rate = (si['framerate_hz'] / self.params['downsample_factor'])
-            frame_pre_stim, frame_post_stim = (int(downsampled_rate * s) for s in [s_pre_stim, s_post_stim])
-            stim_onsets_downsampled = [int(sof // self.params['downsample_factor']) for sof in si['stim_onset_frame']]
-
-            sta_stack = np.stack([processed_stack[sof-frame_pre_stim:sof+frame_post_stim, :,:] for sof in stim_onsets_downsampled[1:-2]])
-            sta_stacks.append(sta_stack)
-
+        sta_stacks = [t.get_sta_stack(s_pre_stim, s_post_stim) for t in self.trials]
         return sta_stacks
 
-    def get_sync_infos(self):
+    def get_sta_avgs(self):
         """
-        Loads "sync_info.json" files for all (optinally filtered) trials.
+        Return stimulus-triggered average for all trials.
         """
-        sync_infos = []
-        for e,t in zip(self.filtered_exp_dirs, self.filtered_trial_dirs, strict=True):
-            sync_info_path = os.path.join(self.base_path, e, t, "sync_info.json")
-            with open(sync_info_path) as f:
-                sync_info = json.load(f)
-            sync_infos.append(sync_info)
-        print(f"Loaded {len(sync_infos)} sync infos.")
-        return sync_infos
+        sta_avgs = [t.get_sta_avg() for t in self.trials]
+        return sta_avgs
