@@ -123,8 +123,7 @@ def _get_sync_info(sync_csv_path, col_stim = 'button'):
     # stim_onset_frame = int(df_frames.loc[df_frames["stimulated"], "frame"].iloc[0])
     df_frames.set_index("frame", inplace=True)
 
-    stim_onset_frame = df_frames['stimulated'].diff().values
-    stim_onset_frame = np.where(stim_onset_frame == True)[0].tolist()  # noqa: E712
+    stim_onset_frame = np.where((df_frames['stimulated'] == True) & (df_frames['stimulated'].shift(1) == False))[0].tolist()  # noqa: E712, E501
 
     n_stims = len(stim_onset_frame)
     print(f"Stimulus onset frame: {stim_onset_frame}")
