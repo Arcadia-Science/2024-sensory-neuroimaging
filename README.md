@@ -67,6 +67,7 @@ Assumed file structure
 
 To display a help message for any script:
 ```python
+```sh
 python src/neuroprocessing/scripts/{script.py} --help
 ```
 
