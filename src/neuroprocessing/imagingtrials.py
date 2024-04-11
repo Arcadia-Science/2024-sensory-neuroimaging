@@ -14,22 +14,7 @@ class ImagingTrialLoader:
 
     def __init__(self, params):
         """
-        Initialize the ImagingTrialLoader with params metadata file (generated from run_analysis).
-
-        Example params:
-            params = {
-                "downsample_factor": 8,
-                "aligner_target_num_features": 700,
-                "secs_before_stim": 60, # only process frames starting at X seconds before stimulus
-                "preprocess_prefix": "aligned_downsampled_",
-                "process_prefix": 'processed_',
-                "s3fs_toplvl_path": "/Users/ilya_arcadia/arcadia-neuroimaging-pruritogens/Videos",
-                "local_toplvl_path": "/Users/ilya_arcadia/Neuroimaging_local/Processed/Injections/",
-                "load_from_s3": True,
-                "save_to_s3": False,
-                'crop_px' : 20,
-                'bottom_percentile' : 5
-                }
+        Initialize the ImagingTrialLoader with params metadata file
         """
         self.params = params
         self.base_path = params['s3fs_toplvl_path'] if params['load_from_s3'] else params['local_toplvl_path']
@@ -66,17 +51,13 @@ class ImagingTrialLoader:
         return exps, trials
 
     def parse_filename(self, exp_dir, trial_dir):
-            """Parse a filepath into its components."""
-            tokens = trial_dir.split("_")
-            camera = tokens[0]
-            rec_time = tokens[1]
-            limb = tokens[2]
-            injection_type = tokens[3]
-            # If there are more tokens, append them to the remainder
-            remainder = "_".join(tokens[4:])
+        """Parse a filepath into its components."""
+        camera, rec_time, limb, injection_type, *others = trial_dir.split("_")
+        # If there are more tokens, append them to the remainder
+        remainder = "_".join(others)
 
-            return {"exp_dir": exp_dir, "camera": camera, "rec_time": rec_time, "limb": limb,
-                    "injection_type": injection_type, "remainder": remainder}
+        return {"exp_dir": exp_dir, "camera": camera, "rec_time": rec_time, "limb": limb,
+                "injection_type": injection_type, "remainder": remainder}
 
     def filter_exp_and_trial_dirs(self, **criteria):
         """Filter  trials based on criteria (wildcards allowed).

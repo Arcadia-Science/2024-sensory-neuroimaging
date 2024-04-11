@@ -46,38 +46,38 @@ This pipeline is designed to preprocess and analyze *in vivo* brain imaging data
 
 **Note: Pipeline only supports single-stimulation trials (i.e. injections), where no averaging across trials needs to be performed**
 
-### How to run the pipeline
-Assumed file structure
+### Required file structure
 * Raw imaging and NIDAQ sync data is stored in S3 buckets that are accessible using [S3FS](https://github.com/s3fs-fuse/s3fs-fuse). Follow instructions on S3FS to mount the S3 bucket to a local directory.
 * File structure is assumed to be `{top-level exp dir}/{exp date}/{trial dir}/{Tiff stacks and nidaq CSV files here}`
 * Tiff stack filenames are assumed to be in the form: `{camera}_{duration}_{stimulus_location}_{stimulus_pattern}_{notes}` where:
-    * `camera` e.g. `Zyla` is the camera name
-    * `duration` e.g. `5min` is the duration of the trial
-    * `stimulus_location` e.g. `LHLstim` is the type of stimulus (left hindlimb stimulation)
-    * `stimulus_pattern` e.g. `2son4soff` is the stimulus pattern (2 seconds on, 4 seconds off) or, if injection, injection type (e.g. `saline`, `histamine`)
-    * `notes` e.g. `1pt75pctISO` iso concentration (but can be other notes)
+    * `camera` e.g. `"Zyla"` is the camera name
+    * `duration` e.g. `"5min"` is the duration of the trial
+    * `stimulus_location` e.g. `"LHLstim"` is the type of stimulus (left hindlimb stimulation)
+    * `stimulus_pattern` e.g. `"2son4soff"` is the stimulus pattern (2 seconds on, 4 seconds off) or, if injection, injection type (e.g. `saline`, `histamine`)
+    * `notes` e.g. `"1pt75pctISO"` iso concentration (but can be other notes)
 
+### How to run the pipeline
 1. Copy the raw folder names for the trials that you want to analyze from the top-level S3 dir to a local directory, e.g. `data/2024-03-06/`
-2. Adjust default parameters in `analysis_runs/default_analysis_params.json` if needed
-2. Run the pipeline using CLI `python src/neuroprocessing/scripts/run_analysis.py --date "2024-02-29"`
-3. The pipeline will output the processed data to the local directory you specified in `default_analysis_params.json` or in the CLI arguments
-4. See `notebooks/injection_analysis.ipynb` for an example of how to load and analyze the processed data
+2. Adjust default parameters in `analysis_runs/default_analysis_params.json`. Specifically, set `s3fs_toplvl_path` to the S3FS mounted directory, and `local_toplvl_path` to the local directory
+3. Run the pipeline using the CLI `python src/neuroprocessing/scripts/run_analysis.py --date "2024-02-29"`
+4. The pipeline will output the processed data to the local directory you specified in `default_analysis_params.json` or in the CLI arguments
+5. See `notebooks/injection_analysis.ipynb` for an example of how to load and analyze the processed data
 
 ## Scripts
 
 To display a help message for any script:
-```python
-```sh
+
+```bash
 python src/neuroprocessing/scripts/{script.py} --help
 ```
 
-### Run injection analysis
+### Overall pipeline
 
 To analyze injection imaging data, see `src/neuroprocessing/scripts/run_analysis.py`. The script includes steps for preprocessing (downsample, motion correction) and processing (segmentation, bleach correction). For example, to analyze a single experiment day, run:
 
 ```bash
 conda activate neuro
-python src/neuroprocessing/scripts/run_analysis.py --date "2024-02-29"
+python python src/neuroprocessing/scripts/run_analysis.py --date "2024-02-21" --trial "Zyla_5min_LFLstim_2son4soff_1pt25pctISO_deeper_1" --params_file "path/to/file.json"
 ```
 
 During analysis you may see the following warning: `<tifffile.TiffFile 'Zyla_30min_RHL_…ack_Pos0.ome.tif'> ImageJ series metadata invalid or corrupted file`. This warning is expected because we are not using the OME metadata in TIFF files. It can be ignored. You will also see warnings like `UserWarning: {filename} is a low contrast image`. This is also expected and can be ignored.
@@ -85,35 +85,14 @@ During analysis you may see the following warning: `<tifffile.TiffFile 'Zyla_30m
 ### Motion correction
 
 To apply motion correction to a timelapse:
-```python
+```bash
 python src/neuroprocessing/scripts/correct_motion.py --filename {/path/to/timelapse.ome.tif}
 ```
 
 Note that this script is somewhat computationally expensive and runs on 8 processors by default. Multiprocessing can be turned off by setting the number of workers argument to 1.
-```python
+```bash
 python src/neuroprocessing/scripts/correct_motion.py --filename {/path/to/timelapse.ome.tif} --num-workers 1
 ```
-
-
-## Scripts
-
-To display a help message for any script:
-```python
-python src/neuroprocessing/scripts/{script.py} --help
-```
-
-### Motion correction
-
-To apply motion correction to a timelapse:
-```python
-python src/neuroprocessing/scripts/correct_motion.py --filename {/path/to/timelapse.ome.tif}
-```
-
-Note that this script is somewhat computationally expensive and runs on 8 processors by default. Multiprocessing can be turned off by setting the number of workers argument to 1.
-```python
-python src/neuroprocessing/scripts/correct_motion.py --filename {/path/to/timelapse.ome.tif} --num-workers 1
-```
-
 
 ## Contributing
 
