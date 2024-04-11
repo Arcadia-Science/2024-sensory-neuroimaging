@@ -282,7 +282,8 @@ def preprocess_trial(exp_dir:str, trial_dir:str, params:dict):
     # Downsample and average image in time to denoise
     stack_downsampled = downscale_local_mean(np.concatenate(stack_list, axis=0),
                                              factors=(params['downsample_factor'], 1, 1))
-    del(stack_list)
+    # delete large stack_list variable to free up memory
+    del stack_list
 
     aligner = StackAligner(
             stack=stack_downsampled,

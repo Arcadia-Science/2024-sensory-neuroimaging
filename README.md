@@ -60,8 +60,32 @@ This pipeline is designed to preprocess and analyze *in vivo* brain imaging data
 1. Copy the raw folder names for the trials that you want to analyze from the top-level S3 dir to a local directory, e.g. `data/2024-03-06/`
 2. Adjust default parameters in `analysis_runs/default_analysis_params.json`. Specifically, set `s3fs_toplvl_path` to the S3FS mounted directory, and `local_toplvl_path` to the local directory
 3. Run the pipeline using the CLI `python src/neuroprocessing/scripts/run_analysis.py --date "2024-02-29"`
-4. The pipeline will output the processed data to the local directory you specified in `default_analysis_params.json` or in the CLI arguments
+4. The pipeline will output the processed data to the local directory specified in the parameters file (see #analysis-parameters)
 5. See `notebooks/injection_analysis.ipynb` for an example of how to load and analyze the processed data
+
+### Analysis parameters
+Analysis parameters are stored in a JSON file, e.g. `analysis_runs/default_analysis_params.json`. The file contains the following parameters:
+
+ * `aligner_target_num_features`: Default is 700. Number of target features for aligner (larger number is more accurate but slower)
+ * `preprocess_prefix`: Default is `"aligned_downsampled_"`. Prefix used for preprocessed image files
+ * `process_prefix`: Default is `"processed_"`. Prefix used for processed image files
+ * `s3fs_toplvl_path`: Default is `"/s3/path/to/videos/"`. Set this to the mounted S3 bucket path
+ * `local_toplvl_path`: Default is` "/localpath/to/videos/"`. Set this to the local directory where the raw data is copied
+ * `load_from_s3`: Default is `true`.
+ * `save_to_s3`: Default is `false`.
+ * `crop_px`: Default is `20`. Number of pixels to crop from each edge of the image to eliminate edge artifacts from motion correction
+ * `bottom_percentile`: Default is `5`. Percent of pixels to subtract from every frame to correct for photobleaching
+ * `flood_connectivity`: Default is `20`. Connectivity setting for flood-filling algorithm (skimage.segmentation.flood) to identify brain mask.
+ * `flood_tolerance`:  Default is `1000`. Tolerance setting for flood-filling algorithm (skimage.segmentation.flood) to identify brain mask.
+
+
+**Additional parameters are added with `run_analysis` during runtime.**
+
+ * `sync_csv_col` is set to `"stim"` if this is a tactile stim trial; otherwise `"button"`. `"stim"` is the channel in the sync file indicating when the vibration motor is on. `"button"` is the channel in the sync file indicating when the user pushed the button to indicate that the  injection is happening.
+ * `downsample_factor` is set to `2` this is a tactile stim trial; otherwise `8`. For tactile, 2 was chosen because tactile stim on times are only ~20 frames long, so we don't want to downsample so much that we lose the stim. For injection trials, 8 was chosen bc it is approximately the breathing rate of the animal
+ * `secs_before_stim` is set to 0 if this is a tactile stim trial; otherwise `60`. For tactile, process the whole recording. For injections, process starting at 60 s (1 min) before injection to avoid artifacts
+
+`run_analysis` determines whether the current trial is a tactile stim trial or an injection trial based on the trial name. Tactile stimulation trials are typically 5 mins long and have `"_5min_"` in the trial name. Injection trials are typically 15 or 30 mins long.
 
 ## Scripts
 

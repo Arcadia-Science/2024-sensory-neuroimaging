@@ -27,7 +27,7 @@ if __name__ == '__main__':
                         help='Trial folder to analyze (optional). If not provided, all trials in '
                         'the experiment folder will be analyzed.')
     parser.add_argument('--params_file', type=str, required=True,
-                        help='Path to JSON file containing analysis parameters (required)')
+                        help='Path to JSON file containing analysis parameters (required). See README.md for details.')
     parser.add_argument('--reanalyze', action='store_true',
                         help='If True, reanalyze all trials, even if already processed.'
                         'Processed folders have a params.json file.')
@@ -55,29 +55,15 @@ if __name__ == '__main__':
     for trial_dir in tqdm.tqdm(trial_dirs):
         '''
         This is how we identify which trial is tactile stim and which is injection
-        Right now just using the information that tactile stims are 5 mins and injection stims are 
+        Right now just using the information that tactile stims are 5 mins and injection stims are
         longer (15 or 30 mins)
+
+        See README.md for details on values chosen for the parameters below.
         '''
         is_tactile_stim_trial = '_5min_' in trial_dir.name
 
-        '''
-        * "stim" is the channel in the sync file indicating when the vibration motor is on
-        * "button" is the channel in the sync file indicating when the user pushed the button to 
-        indicate that the  injection is happening
-        '''
         params['sync_csv_col'] = 'stim' if is_tactile_stim_trial else 'button'
-
-        '''
-        * For tactile, 2 was chosen because tactile stim on times are only ~20 frames long, so we
-        don't want to downsample so much that we lose the stim.
-        * For injection trials, 8 was chosen bc it is approximately the breathing rate of the animal
-        '''
         params['downsample_factor'] = 2 if is_tactile_stim_trial else 8
-
-        '''
-        * For tactile, process the whole recording
-        * For injections, process starting at 60 s (1 min) before injection to avoid artifacts
-        '''
         params['secs_before_stim'] = 0 if is_tactile_stim_trial else 60
 
         if args['reanalyze'] or not (trial_dir / 'params.json').exists():
