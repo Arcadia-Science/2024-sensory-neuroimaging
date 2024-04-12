@@ -102,7 +102,8 @@ def process_data(
     if hist.min() == hist[1]:
         df["stimulated"] = df.loc[:, col_stim] > bin_edges[1]
     else:
-        raise ValueError("Unable to determine threshold for stimulus on/off signal.")
+        raise ValueError("Unable to determine threshold for stimulus on/off signal." +
+                         f"Is the stimulus signal `{col_stim}` correct?")
 
     # get frame count from cumulative sum of positive changes to camera signal
     # basically frame count is incremented each time the camera switches back on
