@@ -25,7 +25,7 @@ class ImagingTrial:
         return f"ImagingTrial({self.exp_dir}, {self.trial_dir})"
 
     def __str__(self):
-        return f"ImagingTrial: {self.exp_dir} - {self.trial_dir}"
+        return f"ImagingTrial {self.exp_dir} - {self.trial_dir}"
 
     def _load_params(self):
         """
