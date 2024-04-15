@@ -76,7 +76,7 @@ class ImagingTrialLoader:
 
     def load_mask_files(self):
         """
-        Loads "mask.npy" files for all (optinally filtered) trials.
+        Loads "mask.npy" files for all (optionally filtered) trials.
         """
         masks = []
         for e,t in zip(self.filtered_exp_dirs, self.filtered_trial_dirs, strict=True):
