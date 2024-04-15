@@ -185,7 +185,7 @@ class ImagingTrialLoader:
 
     def get_sync_infos(self):
         """
-        Loads "sync_info.json" files for all (optinally filtered) trials.
+        Loads "sync_info.json" files for all (optionally filtered) trials.
         """
         sync_infos = []
         for e,t in zip(self.filtered_exp_dirs, self.filtered_trial_dirs, strict=True):
