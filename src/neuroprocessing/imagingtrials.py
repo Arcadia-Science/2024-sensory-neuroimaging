@@ -227,7 +227,7 @@ class ImagingTrialLoader:
 
     def get_masks(self):
         """
-        Loads "mask.npy" files for all (optinally filtered) trials.
+        Loads "mask.npy" files for all (optionally filtered) trials.
         """
         masks = [m for m in self.trials.load_mask()]
         if len(masks) == 0:
@@ -236,7 +236,7 @@ class ImagingTrialLoader:
 
     def load_traces(self):
         """
-        Loads "traces.npy" files for all (optinally filtered) trials.
+        Loads "traces.npy" files for all (optionally filtered) trials.
         """
         traces = [t for t in self.trials.load_trace()]
         if len(traces) == 0:
