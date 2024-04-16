@@ -95,7 +95,7 @@ class ImagingTrialLoader:
 
     def load_traces(self):
         """
-        Loads "traces.npy" files for all (optinally filtered) trials.
+        Loads "traces.npy" files for all (optionally filtered) trials.
         """
         traces = []
         for e,t,m in zip(self.filtered_exp_dirs, self.filtered_trial_dirs, self.masks, strict=True):
@@ -114,7 +114,7 @@ class ImagingTrialLoader:
                      montage_hw = (5,20),
                      montage_grid_shape=None):
         """
-        Plots a montage of all (optinally filtered) trials.
+        Plots a montage of all (optionally filtered) trials.
         """
         import matplotlib.pyplot as plt
         from skimage.util import montage
@@ -155,7 +155,7 @@ class ImagingTrialLoader:
     def get_sta_stacks(self, s_pre_stim = 1, s_post_stim = 5)->list:
         """
         Return a list of stimulus-triggered average stacks [n_trials x n_frames x h x w] for
-        all (optinally filtered) trials.
+        all (optionally filtered) trials.
 
         Inputs:
             s_pre_stim: int
