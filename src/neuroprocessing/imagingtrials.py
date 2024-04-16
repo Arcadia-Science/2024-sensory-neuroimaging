@@ -76,13 +76,15 @@ class ImagingTrial:
 
     def load_trace(self):
         """
-        Loads the "traces.npy" file for the trial.
+        Returns time vector (s) and trace of whole-brain activity for the trial.
         """
         mask = self.load_mask()
+        sync_info = self._get_sync_info()
 
         processed_stack = self._load_processed_stack()
         trace = np.mean(processed_stack[:,mask], axis=1)
-        return trace
+        t = (np.arange(0, len(trace))) / (sync_info['framerate_hz'] / self.params['downsample_factor']) - self.params['secs_before_stim']
+        return t, trace
 
     def match_exp_criteria(self, **criteria):
         """Match trial against criteria."""
@@ -219,7 +221,27 @@ class ImagingTrialLoader:
 
     def filter(self, **criteria):
         """Filter  ImagingTrials based on criteria (wildcards allowed).
+
+        Input criteria are specified in `ImagingTrial._parse_filename()`.
+
+        Examples:
+        
+        ```
+        trials.filter(exp_dir='2024-03-19'
+                      limb='LHL'
+        ```
+        loads only trials from the left hind limb (LHL) from the experiment on March 19.
+        
+        ```
+        trials.filter(exp_dir='2024-03-19'
+                      limb='(L|R)HL$',
+                      injection_type='.*inj'
+        ```
+        loads only trials ending with "inj" from the left and right hind limbs (LHL, RHL) from the experiment on March 19, but not "RHLstim", "LHLstim" etc.
+        
         """
+
+
         trials_filt = [t for t in self.trials if t.match_exp_criteria(**criteria)]
         self.trials = trials_filt
         print(f"Filtered to {len(self)} trials.")
