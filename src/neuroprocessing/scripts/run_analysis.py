@@ -12,10 +12,6 @@ import tqdm
 from neuroprocessing.scripts.analysis import preprocess_and_process_trial
 
 if __name__ == '__main__':
-    # Load default values from JSON
-    with open(Path('analysis_runs') / 'default_analysis_params.json') as f:
-        default_params = json.load(f)
-
     parser = argparse.ArgumentParser(description=(
         'Run analysis (pre-process and processing steps).',
         'Default parameters are loaded from `analysis_runs/default_analysis_params.json`.'))
