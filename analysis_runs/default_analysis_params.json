@@ -1,0 +1,13 @@
+{
+    "aligner_target_num_features": 700,
+    "preprocess_prefix": "aligned_downsampled_",
+    "process_prefix": "processed_",
+    "s3fs_toplvl_path": "/s3/path/to/videos/",
+    "local_toplvl_path": "/localpath/to/videos/",
+    "load_from_s3": true,
+    "save_to_s3": false,
+    "crop_px": 20,
+    "bottom_percentile": 5,
+    "flood_connectivity": 20,
+    "flood_tolerance" : 1000
+}

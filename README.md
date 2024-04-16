@@ -1,12 +1,14 @@
+![sample_montage](https://github.com/Arcadia-Science/2024-neuroimaging-pruritogens/assets/4419151/8f50e257-c0b4-449f-b7d3-684038b42816)
+
+
 # 2024-neuroimaging-pruritogens
 
 [![run with conda](http://img.shields.io/badge/run%20with-conda-3EB049?labelColor=000000&logo=anaconda)](https://docs.conda.io/projects/miniconda/en/latest/)
 
 
-Data analysis scripts and notebooks for the translation pilot "Brain imaging of pruritogen responses"
 
-## Purpose
-
+## Overview
+Data analysis scripts and notebooks for the translation pilot "Brain imaging of pruritogen responses". Contains all code necessary to reproduce figures and results from the pub.
 
 ## Installation and Setup
 
@@ -17,29 +19,111 @@ conda create -n neuro --file envs/dev.yml
 conda activate neuro
 ```
 
+To install the package in development mode, run:
 
-## Overview
+```{bash}
+pip install -e .
+```
 
+## Neuroimaging analysis pipeline
+
+This pipeline is designed to preprocess and analyze *in vivo* brain imaging data collected with a widefield microscope. Included in the pipeline are the following steps:
+
+* Preprocessing (`preprocess_trial` in `src/neuroprocessing/scripts/analysis.py`)
+    * Load TIFF stack of raw imaging data, concatenate stacks if needed
+    * Load NIDAQ sync file to align imaging data with stimulus
+    * Downsample stack in time
+    * Correct for motion artifacts (see [Motion correction](#motion-correction))
+* Processing (`process_trial` in `src/neuroprocessing/scripts/analysis.py`)
+    * Automatically mask out the brain
+    * Correct for photobleaching
+* Analysis and visualization (`ImagingTrialLoader` in `src/neuroprocessing/imagingtrials.py`)
+    * Aggregate all imaging trials, filter them based on metadata (e.g. hindlimb stimulation only), output results
+    * Sample usage in `notebooks/injection_analysis.ipynb`
+
+## Dataset
+
+The raw unprocessed experimental data are stored in an [AWS bucket](https://us-west-1.console.aws.amazon.com/s3/buckets/arcadia-neuroimaging-pruritogens). You may need to obtain permission to access it.
+
+### Required file structure
+
+* Raw imaging and NIDAQ sync data is stored in S3 buckets that are accessible using [S3FS](https://github.com/s3fs-fuse/s3fs-fuse). Follow instructions on S3FS to mount the S3 bucket to a local directory.
+* File structure is assumed to be `{top-level exp dir}/{exp date}/{trial dir}/{Tiff stacks and nidaq CSV files here}`
+* Tiff stack filenames are assumed to be in the form: `{camera}_{duration}_{stimulus_location}_{stimulus_pattern}_{notes}` where:
+    * `camera` e.g. `"Zyla"` is the camera name
+    * `duration` e.g. `"5min"` is the duration of the trial
+    * `stimulus_location` e.g. `"LHLstim"` is the type of stimulus (left hindlimb stimulation)
+    * `stimulus_pattern` e.g. `"2son4soff"` if tactile stimulation (2 seconds on, 4 seconds off) or, if injection, injection type (e.g. `saline`, `histamine`)
+    * `notes` e.g. `"1pt75pctISO"`: iso concentration (but can be other notes)
+
+### How to run the pipeline
+
+1. Copy the raw folder names for the trials that you want to analyze from the top-level S3 dir to a local directory, e.g. `data/2024-03-06/`
+2. Adjust default parameters in `analysis_runs/default_analysis_params.json`. Specifically, set `s3fs_toplvl_path` to the S3FS mounted directory, and `local_toplvl_path` to the local directory
+3. Run the pipeline using the CLI `python src/neuroprocessing/scripts/run_analysis.py --date "2024-02-29"`
+4. The pipeline will output the processed data to the local directory specified in the parameters file (see [Analysis parameters](#analysis-parameters))
+5. See `notebooks/injection_analysis.ipynb` for an example of how to load and analyze the processed data
+
+### Analysis parameters
+
+Analysis parameters are stored in a JSON file, e.g. `analysis_runs/default_analysis_params.json`. The file contains the following parameters:
+
+ * `aligner_target_num_features`: Default is 700. Number of target features for aligner (larger number is more accurate but slower).
+ * `preprocess_prefix`: Default is `"aligned_downsampled_"`. Prefix used for preprocessed image files.
+ * `process_prefix`: Default is `"processed_"`. Prefix used for processed image files.
+ * `s3fs_toplvl_path`: Default is `"/s3/path/to/videos/"`. Set this to the mounted S3 bucket path.
+ * `local_toplvl_path`: Default is` "/localpath/to/videos/"`. Set this to the local directory where the raw data is copied.
+ * `load_from_s3`: Default is `true`.
+ * `save_to_s3`: Default is `false`.
+ * `crop_px`: Default is `20`. Number of pixels to crop from each edge of the image to eliminate edge artifacts from motion correction.
+ * `bottom_percentile`: Default is `5`. Percent of pixels to subtract from every frame to correct for photobleaching.
+ * `flood_connectivity`: Default is `20`. Connectivity setting for flood-filling algorithm (`skimage.segmentation.flood`) to identify brain mask.
+ * `flood_tolerance`:  Default is `1000`. Tolerance setting for flood-filling algorithm (`skimage.segmentation.flood`) to identify brain mask.
+
+
+**Additional parameters are added with `run_analysis` during runtime as follows:**
+
+ * `sync_csv_col` is set to `"stim"` if this is a tactile stim trial; otherwise `"button"`. `"stim"` is the channel in the sync file indicating when the vibration motor is on. `"button"` is the channel in the sync file indicating when the user pushed the button to indicate that the  injection is happening.
+ * `downsample_factor` is set to `2` this is a tactile stim trial; otherwise `8`. For tactile, 2 was chosen because tactile stim on times are only ~20 frames long, so we don't want to downsample so much that we lose the stim. For injection trials, 8 was chosen bc it is approximately the breathing rate of the animal.
+ * `secs_before_stim` is set to 0 if this is a tactile stim trial; otherwise `60`. For tactile, process the whole recording. For injections, process starting at 60 s (1 min) before injection to avoid artifacts.
+
+`run_analysis` determines whether the current trial is a tactile stim trial or an injection trial based on the trial name. Tactile stimulation trials are typically 5 mins long and have `"_5min_"` in the trial name. Injection trials are typically 15 or 30 mins long.
 
 ## Scripts
 
 To display a help message for any script:
-```python
+
+```bash
 python src/neuroprocessing/scripts/{script.py} --help
 ```
+
+### Overall pipeline
+
+To analyze imaging data, see `src/neuroprocessing/scripts/run_analysis.py`. The script includes steps for preprocessing (downsample, motion correction) and processing (segmentation, bleach correction). For example, to analyze all experiments from a single day, run:
+
+```bash
+conda activate neuro
+python src/neuroprocessing/scripts/run_analysis.py --date "2024-02-21" --params_file "path/to/file.json"
+```
+
+To analyze a single trial in a day, run:
+```bash
+python src/neuroprocessing/scripts/run_analysis.py --date "2024-02-21" --trial "Zyla_5min_LFLstim_2son4soff_1pt25pctISO_deeper_1" --params_file "path/to/file.json"
+```
+
+During analysis you may see the following warning: `<tifffile.TiffFile 'Zyla_30min_RHL_…ack_Pos0.ome.tif'> ImageJ series metadata invalid or corrupted file`. This warning is expected because we are not using the OME metadata in TIFF files. It can be ignored. You will also see warnings like `UserWarning: {filename} is a low contrast image`. This is also expected and can be ignored.
 
 ### Motion correction
 
 To apply motion correction to a timelapse:
-```python
+```bash
 python src/neuroprocessing/scripts/correct_motion.py --filename {/path/to/timelapse.ome.tif}
 ```
 
 Note that this script is somewhat computationally expensive and runs on 8 processors by default. Multiprocessing can be turned off by setting the number of workers argument to 1.
-```python
+```bash
 python src/neuroprocessing/scripts/correct_motion.py --filename {/path/to/timelapse.ome.tif} --num-workers 1
 ```
-
 
 ## Contributing
 
