@@ -82,22 +82,39 @@ class ImagingTrial:
         downsampled_rate = (self.sync_info['framerate_hz'] / self.params['downsample_factor'])
         return int(downsampled_rate * time_s)
 
-    def load_trace(self):
+    def _get_roi_mask(self, dims:tuple,
+                      roi:dict):
+        roi_mask = np.zeros(dims, dtype=bool)
+        x, y = roi['center']
+        w, h = roi['width'], roi['height']
+        roi_mask[y-h//2:y+h//2, x-w//2:x+w//2] = True
+        return roi_mask
+
+    def load_trace(self, roi=None):
         """
-        Returns time vector (s) and trace of whole-brain activity for the trial.
+        Returns time vector (s) and trace of whole-brain activity (if ROI not defined) and
+          ROI-bounded activity (if ROI dict is defined) for the trial.
+
+        Inputs:
+            roi: dict
+                Dictionary with keys 'center', 'width', 'height' specifying the ROI.
+                'center' is a tuple (x,y) with the center of the ROI.
+                'width' and 'height' are integers specifying the width and height of the ROI.
+
+        Returns:
+            t: np.ndarray
+                Time vector in seconds.
+            trace: np.ndarray
         """
         mask = self.load_mask()
+
+        if roi is not None: # make mask from ROI
+            mask = self._get_roi_mask(mask.shape, roi)
 
         processed_stack = self._load_processed_stack()
         trace = np.mean(processed_stack[:,mask], axis=1)
         t = (np.arange(0, len(trace))) / (self.sync_info['framerate_hz'] / self.params['downsample_factor']) - self.params['secs_before_stim']
         return t, trace
-
-    def load_trace_roi(self, roi):
-        """
-        Returns time vector (s) and trace of roi-defined activity for the trial.
-        """
-        pass
 
     def match_exp_criteria(self, **criteria):
         """Match trial against criteria."""
@@ -161,7 +178,7 @@ class ImagingTrial:
         stack_diff = (stack_stim - stack_base).mean(axis=(0,1))
         return stack_diff
 
-    def get_sta_stack(self, s_pre_stim = 1, s_post_stim = 5):
+    def get_sta_stack(self, s_pre_stim = 1, s_post_stim = 5, roi=None):
         """
         Return a stimulus-triggered average stack [n_trials x n_frames x h x w] for the trial.
 
@@ -170,7 +187,14 @@ class ImagingTrial:
                 Number of seconds before stimulus onset to include in the stack.
             s_post_stim: int
                 Number of seconds after stimulus onset to include in the stack.
+            roi: dict
+                Dictionary with keys 'center', 'width', 'height' specifying the ROI.
+                'center' is a tuple (x,y) with the center of the ROI.
+                'width' and 'height' are integers specifying the width and height of the ROI.
 
+        Returns:
+            sta_stack: np.ndarray
+                Stimulus-triggered average stack [n_trials x n_frames x h x w] for the trial.
         """
 
         processed_stack = self._load_processed_stack()
@@ -178,7 +202,11 @@ class ImagingTrial:
         frame_pre_stim, frame_post_stim = (self._s_to_adjusted_framerate(s) for s in [s_pre_stim, s_post_stim])
         stim_onsets_downsampled = [int(sof // self.params['downsample_factor']) for sof in self.sync_info['stim_onset_frame']]
 
-        sta_stack = np.stack([processed_stack[sof-frame_pre_stim:sof+frame_post_stim, :,:] for sof in stim_onsets_downsampled[1:-1]])
+        if roi is None:
+            sta_stack = np.stack([processed_stack[sof-frame_pre_stim:sof+frame_post_stim, :,:] for sof in stim_onsets_downsampled[1:-1]])
+        else:
+            roi_mask = self._get_roi_mask(processed_stack.shape[1:], roi)
+            sta_stack = np.stack([processed_stack[sof-frame_pre_stim:sof+frame_post_stim, roi_mask] for sof in stim_onsets_downsampled[1:-1]])
         return sta_stack
 
 
