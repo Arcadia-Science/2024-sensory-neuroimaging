@@ -19,6 +19,7 @@ class ImagingTrial:
         self.trial_dir = trial_dir
         self.base_path = base_path
         self.params = self._load_params()
+        self.sync_info = self._get_sync_info()
         self.mask = None
 
     def __repr__(self):
@@ -74,17 +75,29 @@ class ImagingTrial:
             sync_info = json.load(f)
         return sync_info
 
+    def _s_to_adjusted_framerate(self, time_s: float):
+        """
+        Convert a time in seconds to a frame number in the downsampled stack.
+        """
+        downsampled_rate = (self.sync_info['framerate_hz'] / self.params['downsample_factor'])
+        return int(downsampled_rate * time_s)
+
     def load_trace(self):
         """
         Returns time vector (s) and trace of whole-brain activity for the trial.
         """
         mask = self.load_mask()
-        sync_info = self._get_sync_info()
 
         processed_stack = self._load_processed_stack()
         trace = np.mean(processed_stack[:,mask], axis=1)
-        t = (np.arange(0, len(trace))) / (sync_info['framerate_hz'] / self.params['downsample_factor']) - self.params['secs_before_stim']
+        t = (np.arange(0, len(trace))) / (self.sync_info['framerate_hz'] / self.params['downsample_factor']) - self.params['secs_before_stim']
         return t, trace
+
+    def load_trace_roi(self, roi):
+        """
+        Returns time vector (s) and trace of roi-defined activity for the trial.
+        """
+        pass
 
     def match_exp_criteria(self, **criteria):
         """Match trial against criteria."""
@@ -113,14 +126,12 @@ class ImagingTrial:
         import matplotlib.pyplot as plt
         from skimage.util import montage
 
-        sync_info = self._get_sync_info()
         processed_stack = io.imread(os.path.join(self.base_path,
                                                  self.exp_dir,
                                                  self.trial_dir,
                                                  self.params['process_prefix'] + self.trial_dir + ".tif"))
         # get first frame closest to s_start
-        downsampled_rate = (sync_info['framerate_hz'] / self.params['downsample_factor'])
-        frame_start, frame_end, frame_step = (int(downsampled_rate * s) for s in [s_start, s_end, s_step])
+        frame_start, frame_end, frame_step = (self._s_to_adjusted_framerate(s) for s in [s_start, s_end, s_step])
         n_frames = (frame_end - frame_start) // frame_step
         print(f"Frame start: {frame_start}, Frame end: {frame_end}, Frame step: {frame_step}, N frames: {n_frames}")
         montage_stack = processed_stack[frame_start:frame_end:frame_step,:,:]
@@ -136,13 +147,12 @@ class ImagingTrial:
 
     def get_sta_avg(self):
         """ Return stimulus-triggered average for all trials"""
-        sync_info = self._get_sync_info()
         processed_stack = self._load_processed_stack()
 
         # assume that stim duration is stim_duration_frames / # stimulations / downsample_factor
         #@TODO: this may not be the case for all trials in the future e.g. if stimulation epochs have different durations
-        stim_duration_frames = sync_info['stim_duration_frames'] // sync_info['Number of stimulations'] // self.params['downsample_factor']
-        stim_onsets_downsampled = [int(sof // self.params['downsample_factor']) for sof in sync_info['stim_onset_frame']]
+        stim_duration_frames = self.sync_info['stim_duration_frames'] // self.sync_info['Number of stimulations'] // self.params['downsample_factor']
+        stim_onsets_downsampled = [int(sof // self.params['downsample_factor']) for sof in self.sync_info['stim_onset_frame']]
 
         #@TODO: this assumes that the baseline duration = stim duration, which is not true
         stack_base = np.stack(processed_stack[sof - stim_duration_frames:sof,:,:] for sof in stim_onsets_downsampled[1:-1])
@@ -153,7 +163,7 @@ class ImagingTrial:
 
     def get_sta_stack(self, s_pre_stim = 1, s_post_stim = 5):
         """
-        Return a stimulus-triggered average stack [n_frames x h x w] for the trial.
+        Return a stimulus-triggered average stack [n_trials x n_frames x h x w] for the trial.
 
         Inputs:
             s_pre_stim: int
@@ -162,12 +172,11 @@ class ImagingTrial:
                 Number of seconds after stimulus onset to include in the stack.
 
         """
-        sync_info = self._get_sync_info()
+
         processed_stack = self._load_processed_stack()
 
-        downsampled_rate = (sync_info['framerate_hz'] / self.params['downsample_factor'])
-        frame_pre_stim, frame_post_stim = (int(downsampled_rate * s) for s in [s_pre_stim, s_post_stim])
-        stim_onsets_downsampled = [int(sof // self.params['downsample_factor']) for sof in sync_info['stim_onset_frame']]
+        frame_pre_stim, frame_post_stim = (self._s_to_adjusted_framerate(s) for s in [s_pre_stim, s_post_stim])
+        stim_onsets_downsampled = [int(sof // self.params['downsample_factor']) for sof in self.sync_info['stim_onset_frame']]
 
         sta_stack = np.stack([processed_stack[sof-frame_pre_stim:sof+frame_post_stim, :,:] for sof in stim_onsets_downsampled[1:-1]])
         return sta_stack
@@ -193,7 +202,7 @@ class ImagingTrialLoader:
 
     def __iter__(self):
         return iter(self.trials)
-    
+
     def collect_exps_and_trials(self):
         """Collects all experiment and trial directories from the base path."""
         exps = []
@@ -225,56 +234,24 @@ class ImagingTrialLoader:
         Input criteria are specified in `ImagingTrial._parse_filename()`.
 
         Examples:
-        
+
         ```
         trials.filter(exp_dir='2024-03-19'
                       limb='LHL'
         ```
         loads only trials from the left hind limb (LHL) from the experiment on March 19.
-        
+
         ```
         trials.filter(exp_dir='2024-03-19'
                       limb='(L|R)HL$',
                       injection_type='.*inj'
         ```
-        loads only trials ending with "inj" from the left and right hind limbs (LHL, RHL) from the experiment on March 19, but not "RHLstim", "LHLstim" etc.
-        
+        loads only trials ending with "inj" from the left and right hind limbs (LHL, RHL) from the
+        experiment on March 19, but not "RHLstim", "LHLstim" etc.
+
         """
 
 
         trials_filt = [t for t in self.trials if t.match_exp_criteria(**criteria)]
         self.trials = trials_filt
         print(f"Filtered to {len(self)} trials.")
-
-
-    def get_masks(self):
-        """
-        Loads "mask.npy" files for all (optionally filtered) trials.
-        """
-        masks = [m for m in self.trials.load_mask()]
-        if len(masks) == 0:
-            raise ValueError("No masks found.")
-        return masks
-
-    def load_traces(self):
-        """
-        Loads "traces.npy" files for all (optionally filtered) trials.
-        """
-        traces = [t for t in self.trials.load_trace()]
-        if len(traces) == 0:
-            raise ValueError("No traces found.")
-        return traces
-
-    def get_sta_stacks(self, s_pre_stim = 1, s_post_stim = 5):
-        """
-        Return stimulus-triggered average stacks for all trials.
-        """
-        sta_stacks = [t.get_sta_stack(s_pre_stim, s_post_stim) for t in self.trials]
-        return sta_stacks
-
-    def get_sta_avgs(self):
-        """
-        Return stimulus-triggered average for all trials.
-        """
-        sta_avgs = [t.get_sta_avg() for t in self.trials]
-        return sta_avgs
