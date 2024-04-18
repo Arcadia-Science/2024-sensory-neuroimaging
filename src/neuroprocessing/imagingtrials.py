@@ -206,7 +206,11 @@ class ImagingTrial:
             sta_stack = np.stack([processed_stack[sof-frame_pre_stim:sof+frame_post_stim, :,:] for sof in stim_onsets_downsampled[1:-1]])
         else:
             roi_mask = self._get_roi_mask(processed_stack.shape[1:], roi)
+            n_frames = frame_pre_stim + frame_post_stim
             sta_stack = np.stack([processed_stack[sof-frame_pre_stim:sof+frame_post_stim, roi_mask] for sof in stim_onsets_downsampled[1:-1]])
+
+            # reshape stack back to [n_trials x n_frames x h_roi x w_roi]
+            sta_stack = sta_stack.reshape((sta_stack.shape[0], n_frames, roi['height'], roi['width']))
         return sta_stack
 
 
