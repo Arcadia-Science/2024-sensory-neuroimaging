@@ -178,7 +178,10 @@ class ImagingTrial:
         stack_diff = (stack_stim - stack_base).mean(axis=(0,1))
         return stack_diff
 
-    def get_sta_stack(self, s_pre_stim = 1, s_post_stim = 5, roi=None):
+    def get_sta_stack(self, s_pre_stim = 1,
+                      s_post_stim = 5,
+                      s_baseline = 0.5,
+                      roi=None):
         """
         Return a stimulus-triggered average stack [n_trials x n_frames x h x w] for the trial.
 
@@ -187,19 +190,24 @@ class ImagingTrial:
                 Number of seconds before stimulus onset to include in the stack.
             s_post_stim: int
                 Number of seconds after stimulus onset to include in the stack.
+            s_baseline: int
+                Number of seconds before stimulus onset to use as baseline for background subtraction.
             roi: dict
                 Dictionary with keys 'center', 'width', 'height' specifying the ROI.
                 'center' is a tuple (x,y) with the center of the ROI.
                 'width' and 'height' are integers specifying the width and height of the ROI.
 
         Returns:
-            sta_stack: np.ndarray
-                Stimulus-triggered average stack [n_trials x n_frames x h x w] for the trial.
+            sta_df_stack: np.ndarray
+                Stimulus-triggered, background-subtracted DF stack [n_trials x n_frames x h x w] for the trial.
+            sta_dff_trace: np.ndarray
+                Stimulus-triggered, background-subtracted DF/F stack for the ROI [n_frames].
         """
 
         processed_stack = self._load_processed_stack()
 
         frame_pre_stim, frame_post_stim = (self._s_to_adjusted_framerate(s) for s in [s_pre_stim, s_post_stim])
+        print(f"Frame pre-stim: {frame_pre_stim}, Frame post-stim: {frame_post_stim}")
         stim_onsets_downsampled = [int(sof // self.params['downsample_factor']) for sof in self.sync_info['stim_onset_frame']]
 
         if roi is None:
@@ -211,7 +219,20 @@ class ImagingTrial:
 
             # reshape stack back to [n_trials x n_frames x h_roi x w_roi]
             sta_stack = sta_stack.reshape((sta_stack.shape[0], n_frames, roi['height'], roi['width']))
-        return sta_stack
+
+        frames_baseline = self._s_to_adjusted_framerate(s_baseline)
+        sta_0 = sta_stack[:,:frames_baseline,:,:].mean(axis=1) # get first X frames and average them
+        sta_df_stack = (sta_stack - sta_0[:,np.newaxis,:,:])
+
+        sta_df_nan = sta_df_stack.copy()
+        sta_df_nan[sta_df_stack==0] = np.nan
+
+        sta_0_nan = sta_0.copy()
+        sta_0_nan[sta_0==0] = np.nan
+        sta_dff_trace = sta_df_nan / sta_0_nan[0,np.newaxis,:,:]
+        sta_dff_trace = np.nanmean(sta_dff_trace, axis=(0,2,3))
+
+        return sta_df_stack, sta_dff_trace
 
 
 class ImagingTrialLoader:
