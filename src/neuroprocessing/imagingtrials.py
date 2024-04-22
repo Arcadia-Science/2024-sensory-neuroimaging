@@ -75,13 +75,20 @@ class ImagingTrial:
             sync_info = json.load(f)
         return sync_info
 
-    def _s_to_adjusted_framerate(self, time_s: float):
+    def _s_to_frames(self, time_s: float):
         """
         Convert a time in seconds to a frame number in the downsampled stack.
         """
         downsampled_rate = (self.sync_info['framerate_hz'] / self.params['downsample_factor'])
         return int(downsampled_rate * time_s)
 
+    def _frames_to_s(self, frame: int):
+        """
+        Convert a frame number in the downsampled stack to a time in seconds.
+        """
+        downsampled_rate = (self.sync_info['framerate_hz'] / self.params['downsample_factor'])
+        return frame / downsampled_rate
+    
     def _get_roi_mask(self, dims:tuple,
                       roi:dict):
         roi_mask = np.zeros(dims, dtype=bool)
@@ -148,7 +155,7 @@ class ImagingTrial:
                                                  self.trial_dir,
                                                  self.params['process_prefix'] + self.trial_dir + ".tif"))
         # get first frame closest to s_start
-        frame_start, frame_end, frame_step = (self._s_to_adjusted_framerate(s) for s in [s_start, s_end, s_step])
+        frame_start, frame_end, frame_step = (self._s_to_frames(s) for s in [s_start, s_end, s_step])
         n_frames = (frame_end - frame_start) // frame_step
         print(f"Frame start: {frame_start}, Frame end: {frame_end}, Frame step: {frame_step}, N frames: {n_frames}")
         montage_stack = processed_stack[frame_start:frame_end:frame_step,:,:]
@@ -206,21 +213,21 @@ class ImagingTrial:
 
         processed_stack = self._load_processed_stack()
 
-        frame_pre_stim, frame_post_stim = (self._s_to_adjusted_framerate(s) for s in [s_pre_stim, s_post_stim])
-        print(f"Frame pre-stim: {frame_pre_stim}, Frame post-stim: {frame_post_stim}")
+        frame_pre_stim, frame_post_stim = (self._s_to_frames(s) for s in [s_pre_stim, s_post_stim])
+        n_frames = frame_pre_stim + frame_post_stim
+        print(f"Frames pre-stim: {frame_pre_stim}, Frames post-stim: {frame_post_stim}")
         stim_onsets_downsampled = [int(sof // self.params['downsample_factor']) for sof in self.sync_info['stim_onset_frame']]
 
         if roi is None:
             sta_stack = np.stack([processed_stack[sof-frame_pre_stim:sof+frame_post_stim, :,:] for sof in stim_onsets_downsampled[1:-1]])
         else:
             roi_mask = self._get_roi_mask(processed_stack.shape[1:], roi)
-            n_frames = frame_pre_stim + frame_post_stim
             sta_stack = np.stack([processed_stack[sof-frame_pre_stim:sof+frame_post_stim, roi_mask] for sof in stim_onsets_downsampled[1:-1]])
 
             # reshape stack back to [n_trials x n_frames x h_roi x w_roi]
             sta_stack = sta_stack.reshape((sta_stack.shape[0], n_frames, roi['height'], roi['width']))
 
-        frames_baseline = self._s_to_adjusted_framerate(s_baseline)
+        frames_baseline = self._s_to_frames(s_baseline)
         sta_0 = sta_stack[:,:frames_baseline,:,:].mean(axis=1) # get first X frames and average them
         sta_df_stack = (sta_stack - sta_0[:,np.newaxis,:,:])
 
@@ -232,7 +239,8 @@ class ImagingTrial:
         sta_dff_trace = sta_df_nan / sta_0_nan[0,np.newaxis,:,:]
         sta_dff_trace = np.nanmean(sta_dff_trace, axis=(0,2,3))
 
-        return sta_df_stack, sta_dff_trace
+        sta_t = np.array([self._frames_to_s(f) for f in range(n_frames)])
+        return sta_df_stack, sta_t, sta_dff_trace
 
 
 class ImagingTrialLoader:
