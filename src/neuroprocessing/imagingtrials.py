@@ -88,7 +88,7 @@ class ImagingTrial:
         """
         downsampled_rate = (self.sync_info['framerate_hz'] / self.params['downsample_factor'])
         return frame / downsampled_rate
-    
+
     def _get_roi_mask(self, dims:tuple,
                       roi:dict):
         roi_mask = np.zeros(dims, dtype=bool)
@@ -143,31 +143,34 @@ class ImagingTrial:
         mask = np.load(mask_path)
         return mask
 
-    def plot_montage(self, s_start:int, s_end:int, s_step=1, montage_hw = (5,20), montage_grid_shape=None):
+    def plot_montage(self,s_start:int, s_end:int,
+                    s_step=1,
+                    montage_grid_shape=None,
+                    ax=None,
+                    **plot_kwargs):
         """
         Plots a montage of the trial.
         """
         import matplotlib.pyplot as plt
         from skimage.util import montage
 
-        processed_stack = io.imread(os.path.join(self.base_path,
-                                                 self.exp_dir,
-                                                 self.trial_dir,
-                                                 self.params['process_prefix'] + self.trial_dir + ".tif"))
+        processed_stack = self._load_processed_stack()
         # get first frame closest to s_start
         frame_start, frame_end, frame_step = (self._s_to_frames(s) for s in [s_start, s_end, s_step])
         n_frames = (frame_end - frame_start) // frame_step
         print(f"Frame start: {frame_start}, Frame end: {frame_end}, Frame step: {frame_step}, N frames: {n_frames}")
         montage_stack = processed_stack[frame_start:frame_end:frame_step,:,:]
-        plt.imshow(montage(montage_stack,
+
+        if ax is None:
+            _,ax = plt.subplots(figsize=(10,10))
+        ax.imshow(montage(montage_stack,
                            fill = 0,
                            padding_width = 20,
                            rescale_intensity=False,
                            grid_shape= montage_grid_shape
-                           ))
-        plt.title(f"{self.exp_dir} - {self.trial_dir}")
-        plt.axis("off")
-        plt.show()
+                           ),
+                           **plot_kwargs)
+        return ax
 
     def get_sta_avg(self):
         """ Return stimulus-triggered average for all trials"""
@@ -258,6 +261,12 @@ class ImagingTrialLoader:
     def __len__(self):
         return len(self.trials)
 
+    def __getitem__(self, idx):
+        return self.trials[idx]
+    def __iter__(self):
+        return iter(self.trials)
+    def __next__(self):
+        return next(self.trials)
     def __repr__(self) -> str:
         return f"ImagingTrialLoader({self.base_path})"
 
