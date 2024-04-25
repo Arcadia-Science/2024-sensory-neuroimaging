@@ -172,6 +172,19 @@ class ImagingTrial:
                            **plot_kwargs)
         return ax
 
+    def plot_max_projection(self, ax=None, **plot_kwargs):
+        """
+        Plots the maximum projection of the processed stack.
+        """
+        import matplotlib.pyplot as plt
+        processed_stack = self._load_processed_stack()
+        max_projection = np.max(processed_stack, axis=0)
+
+        if ax is None:
+            _,ax = plt.subplots(figsize=(5,5))
+        ax.imshow(max_projection, **plot_kwargs)
+        return ax
+    
     def get_sta_avg(self):
         """ Return stimulus-triggered average for all trials"""
         processed_stack = self._load_processed_stack()
