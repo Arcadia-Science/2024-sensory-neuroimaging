@@ -143,13 +143,33 @@ class ImagingTrial:
         mask = np.load(mask_path)
         return mask
 
-    def plot_montage(self,s_start:int, s_end:int,
-                    s_step=1,
-                    montage_grid_shape=None,
-                    ax=None,
-                    **plot_kwargs):
+    def plot_montage(self,
+                     s_start:int,
+                     s_end:int,
+                     s_step=1,
+                     montage_grid_shape=None,
+                     ax=None,
+                     **plot_kwargs) -> np.ndarray:
         """
-        Plots a montage of the trial.
+        Returns and plots a montage of the trial.
+
+        Inputs:
+            s_start: int
+                Start time of montage in seconds.
+            s_end: int
+                End time of montage in seconds.
+            s_step: int
+                Step size in seconds.
+            montage_grid_shape: tuple
+                Shape of the montage grid.
+            ax: matplotlib axis
+                Axis to plot the montage (optional).
+            plot_kwargs: dict
+                Keyword arguments for the plot.
+
+        Returns:
+            montage_stack: np.ndarray
+                Montage of the trial [frames x h x w].
         """
         import matplotlib.pyplot as plt
         from skimage.util import montage
@@ -170,7 +190,7 @@ class ImagingTrial:
                            grid_shape= montage_grid_shape
                            ),
                            **plot_kwargs)
-        return ax
+        return montage_stack
 
     def plot_max_projection(self, ax=None, **plot_kwargs):
         """
@@ -184,7 +204,7 @@ class ImagingTrial:
             _,ax = plt.subplots(figsize=(5,5))
         ax.imshow(max_projection, **plot_kwargs)
         return ax
-    
+
     def get_sta_avg(self):
         """ Return stimulus-triggered average for all trials"""
         processed_stack = self._load_processed_stack()
