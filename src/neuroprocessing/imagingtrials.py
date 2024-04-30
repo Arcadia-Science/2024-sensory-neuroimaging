@@ -4,6 +4,7 @@ import re
 
 import numpy as np
 import skimage.io as io
+from skimage.exposure import rescale_intensity
 
 
 class ImagingTrial:
@@ -181,6 +182,11 @@ class ImagingTrial:
         print(f"Frame start: {frame_start}, Frame end: {frame_end}, Frame step: {frame_step}, N frames: {n_frames}")
         montage_stack = processed_stack[frame_start:frame_end:frame_step,:,:]
 
+        montage_stack = np.array([rescale_intensity(m,
+                                in_range= (montage_stack.min(), montage_stack.max()),
+                                out_range=(0, 1),
+                                ) for m in montage_stack])
+
         if ax is None:
             _,ax = plt.subplots(figsize=(10,10))
         ax.imshow(montage(montage_stack,
@@ -296,15 +302,15 @@ class ImagingTrialLoader:
 
     def __getitem__(self, idx):
         return self.trials[idx]
-    def __iter__(self):
-        return iter(self.trials)
-    def __next__(self):
-        return next(self.trials)
-    def __repr__(self) -> str:
-        return f"ImagingTrialLoader({self.base_path})"
 
     def __iter__(self):
         return iter(self.trials)
+
+    def __next__(self):
+        return next(self.trials)
+
+    def __repr__(self) -> str:
+        return f"ImagingTrialLoader({self.base_path})"
 
     def collect_exps_and_trials(self):
         """Collects all experiment and trial directories from the base path."""
