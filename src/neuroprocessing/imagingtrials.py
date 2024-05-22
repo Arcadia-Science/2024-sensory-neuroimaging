@@ -281,7 +281,6 @@ class ImagingTrial:
 
         frames_baseline = self._seconds_to_frame_num(s_baseline)
         sta_baseline_mean = sta_stack[:,:frames_baseline,:,:].mean(axis=1) # get first frames_baseline frames and average them
-        # sta_df_stack = np.clip(sta_stack - sta_baseline_mean[:,np.newaxis,:,:], 0, None) # subtract baseline and clip negative values
         sta_df_stack = sta_stack - sta_baseline_mean[:,np.newaxis,:,:] # subtract baseline and clip negative values
 
         sta_df_nan = sta_df_stack.copy()
@@ -306,19 +305,25 @@ class ImagingTrialsLoader:
         exp_dirs, trial_dirs = self.collect_exps_and_trials()
 
         self.trials = [ImagingTrial(base_path, e,t) for e,t in zip(exp_dirs, trial_dirs, strict=True)]
+        self.filtered_trials = self.trials.copy()
         print(f"Initialized with {len(self)} trials.")
 
     def __len__(self):
-        return len(self.trials)
+        return len(self.filtered_trials)
 
     def __getitem__(self, idx):
-        return self.trials[idx]
+        return self.filtered_trials[idx]
 
     def __iter__(self):
-        return iter(self.trials)
+        return iter(self.filtered_trials)
 
     def __repr__(self) -> str:
         return f"ImagingTrialLoader({self.base_path})"
+
+    def reset_filter(self):
+        """Reset the filter to the original trials."""
+        self.filtered_trials = self.trials.copy()
+        print(f"Reset to {len(self)} trials.")
 
     def collect_exps_and_trials(self):
         """Collects all experiment and trial directories from the base path."""
@@ -368,7 +373,5 @@ class ImagingTrialsLoader:
 
         """
 
-
-        trials_filt = [t for t in self.trials if t.match_exp_criteria(**criteria)]
-        self.trials = trials_filt
+        self.filtered_trials = [t for t in self.trials if t.match_exp_criteria(**criteria)]
         print(f"Filtered to {len(self)} trials.")
