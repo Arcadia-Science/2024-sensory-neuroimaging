@@ -2,19 +2,36 @@ import json
 import os
 import re
 
+import matplotlib.pyplot as plt
 import numpy as np
 import skimage.io as io
 from skimage.exposure import rescale_intensity
+from skimage.util import montage
 
 
 class ImagingTrial:
     """
-    Class to represent an imaging trial and its associated artifacts.
+    Imaging trial class consisting of a single imaging session with simultaneous tactile or
+     injection stimulation
+
+    The following artifacts are expected to be present in the trial directory:
+    * `processed_... .tif` - processed image stack
+    * `params.json` - metadata file with imaging/stimulation parameters
+    * `sync_info.json` - synchronization with stimulation (tactile or injection pushbutton)
+    * `mask_... .npy` - ROI mask
     """
 
     def __init__(self, base_path, exp_dir, trial_dir):
         """
-        Initialize the ImagingTrial with a base_path, exp_dir, trial_dir
+        Initialize the ImagingTrial with directory information
+
+        Inputs:
+            base_path: str
+                Path to the base directory containing the experiments and trials.
+            exp_dir: str
+                Experiment directory (e.g. `2024-02-29`).
+            trial_dir: str
+                Trial directory (e.g. `Zyla_5min_LHLstim_2son4soff_1pt5pctISO_again_1`).
         """
         self.exp_dir = exp_dir
         self.trial_dir = trial_dir
@@ -43,13 +60,8 @@ class ImagingTrial:
 
     def _parse_filename(self):
         """Parse a filepath into its components."""
-        tokens = self.trial_dir.split("_")
-        camera = tokens[0]
-        rec_time = tokens[1]
-        limb = tokens[2]
-        injection_type = tokens[3]
-        # If there are more tokens, append them to the remainder
-        remainder = "_".join(tokens[4:])
+        camera, rec_time, limb, injection_type, *remainder = self.trial_dir.split("_")
+        remainder = "_".join(remainder)
 
         return {"exp_dir": self.exp_dir, "trial_dir":self.trial_dir, "camera": camera,
                 "rec_time": rec_time, "limb": limb,
@@ -76,19 +88,19 @@ class ImagingTrial:
             sync_info = json.load(f)
         return sync_info
 
-    def _s_to_frames(self, time_s: float):
+    def _seconds_to_frame_num(self, time_seconds: float):
         """
         Convert a time in seconds to a frame number in the downsampled stack.
         """
         downsampled_rate = (self.sync_info['framerate_hz'] / self.params['downsample_factor'])
-        return int(downsampled_rate * time_s)
+        return int(downsampled_rate * time_seconds)
 
-    def _frames_to_s(self, frame: int):
+    def _frame_num_to_seconds(self, frame_num: int):
         """
         Convert a frame number in the downsampled stack to a time in seconds.
         """
         downsampled_rate = (self.sync_info['framerate_hz'] / self.params['downsample_factor'])
-        return frame / downsampled_rate
+        return frame_num / downsampled_rate
 
     def _get_roi_mask(self, dims:tuple,
                       roi:dict):
@@ -100,7 +112,7 @@ class ImagingTrial:
 
     def load_trace(self, roi=None):
         """
-        Returns time vector (s) and trace of whole-brain activity (if ROI not defined) and
+        Returns time vector (in seconds) and trace vector of whole-brain activity (if ROI not defined) or
           ROI-bounded activity (if ROI dict is defined) for the trial.
 
         Inputs:
@@ -172,12 +184,10 @@ class ImagingTrial:
             montage_stack: np.ndarray
                 Montage of the trial [frames x h x w].
         """
-        import matplotlib.pyplot as plt
-        from skimage.util import montage
 
         processed_stack = self._load_processed_stack()
         # get first frame closest to s_start
-        frame_start, frame_end, frame_step = (self._s_to_frames(s) for s in [s_start, s_end, s_step])
+        frame_start, frame_end, frame_step = (self._seconds_to_frame_num(s) for s in [s_start, s_end, s_step])
         n_frames = (frame_end - frame_start) // frame_step
         print(f"Frame start: {frame_start}, Frame end: {frame_end}, Frame step: {frame_step}, N frames: {n_frames}")
         montage_stack = processed_stack[frame_start:frame_end:frame_step,:,:]
@@ -202,7 +212,6 @@ class ImagingTrial:
         """
         Plots the maximum projection of the processed stack.
         """
-        import matplotlib.pyplot as plt
         processed_stack = self._load_processed_stack()
         max_projection = np.max(processed_stack, axis=0)
 
@@ -232,7 +241,7 @@ class ImagingTrial:
                       s_baseline = 0.5,
                       roi=None):
         """
-        Return a stimulus-triggered average stack [n_trials x n_frames x h x w] for the trial.
+        Stimulus-triggered averaging (STA) for the trial.
 
         Inputs:
             s_pre_stim: int
@@ -248,14 +257,15 @@ class ImagingTrial:
 
         Returns:
             sta_df_stack: np.ndarray
-                Stimulus-triggered, background-subtracted DF stack [n_trials x n_frames x h x w] for the trial.
+                Stimulus-triggered, background-subtracted stack [n_trials x n_frames x h x w] for the trial.
             sta_dff_trace: np.ndarray
-                Stimulus-triggered, background-subtracted DF/F stack for the ROI [n_frames].
+                Stimulus-triggered, background-subtracted and background-normalized
+                  (i.e. DF/F = (F(t) - F(t=0)) / F(t=0)) stack for the ROI [n_frames].
         """
 
         processed_stack = self._load_processed_stack()
 
-        frame_pre_stim, frame_post_stim = (self._s_to_frames(s) for s in [s_pre_stim, s_post_stim])
+        frame_pre_stim, frame_post_stim = (self._seconds_to_frame_num(s) for s in [s_pre_stim, s_post_stim])
         n_frames = frame_pre_stim + frame_post_stim
         print(f"Frames pre-stim: {frame_pre_stim}, Frames post-stim: {frame_post_stim}")
         stim_onsets_downsampled = [int(sof // self.params['downsample_factor']) for sof in self.sync_info['stim_onset_frame']]
@@ -269,23 +279,24 @@ class ImagingTrial:
             # reshape stack back to [n_trials x n_frames x h_roi x w_roi]
             sta_stack = sta_stack.reshape((sta_stack.shape[0], n_frames, roi['height'], roi['width']))
 
-        frames_baseline = self._s_to_frames(s_baseline)
-        sta_0 = sta_stack[:,:frames_baseline,:,:].mean(axis=1) # get first X frames and average them
-        sta_df_stack = (sta_stack - sta_0[:,np.newaxis,:,:])
+        frames_baseline = self._seconds_to_frame_num(s_baseline)
+        sta_baseline_mean = sta_stack[:,:frames_baseline,:,:].mean(axis=1) # get first frames_baseline frames and average them
+        # sta_df_stack = np.clip(sta_stack - sta_baseline_mean[:,np.newaxis,:,:], 0, None) # subtract baseline and clip negative values
+        sta_df_stack = sta_stack - sta_baseline_mean[:,np.newaxis,:,:] # subtract baseline and clip negative values
 
         sta_df_nan = sta_df_stack.copy()
         sta_df_nan[sta_df_stack==0] = np.nan
 
-        sta_0_nan = sta_0.copy()
-        sta_0_nan[sta_0==0] = np.nan
-        sta_dff_trace = sta_df_nan / sta_0_nan[0,np.newaxis,:,:]
+        sta_baseline_mean_nan = sta_baseline_mean.copy()
+        sta_baseline_mean_nan[sta_baseline_mean==0] = np.nan
+        sta_dff_trace = sta_df_nan / sta_baseline_mean_nan[0,np.newaxis,:,:]
         sta_dff_trace = np.nanmean(sta_dff_trace, axis=(0,2,3))
 
-        sta_t = np.array([self._frames_to_s(f) for f in range(n_frames)])
+        sta_t = np.array([self._frame_num_to_seconds(f) for f in range(n_frames)])
         return sta_df_stack, sta_t, sta_dff_trace
 
 
-class ImagingTrialLoader:
+class ImagingTrialsLoader:
     """
     Class to load imaging trials and their associated artifacts from a directory structure.
     """
@@ -305,9 +316,6 @@ class ImagingTrialLoader:
 
     def __iter__(self):
         return iter(self.trials)
-
-    def __next__(self):
-        return next(self.trials)
 
     def __repr__(self) -> str:
         return f"ImagingTrialLoader({self.base_path})"
@@ -338,7 +346,7 @@ class ImagingTrialLoader:
 
 
     def filter(self, **criteria):
-        """Filter  ImagingTrials based on criteria (wildcards allowed).
+        """In-place (irreversibly) filter ImagingTrials based on criteria (wildcards allowed).
 
         Input criteria are specified in `ImagingTrial._parse_filename()`.
 
