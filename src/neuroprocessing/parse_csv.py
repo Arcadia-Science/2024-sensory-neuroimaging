@@ -1,4 +1,5 @@
 import csv
+
 import numpy as np
 import pandas as pd
 
@@ -36,7 +37,7 @@ def parse_csv(
             r = csv.reader(f)
             # csv is usually huge so only read up to row {row_channels}
             # (where the name of each channel should be)
-            for i in range(row_channels):
+            for _i in range(row_channels):
                 channels = next(r)
 
         # channels now resembles
@@ -47,15 +48,11 @@ def parse_csv(
         for i, name in enumerate(channels):
             # rather hacky but only even columns are duplicates (all
             # 'Channel name') so rename those to time-0, time-2, etc.
-            column = name if i%2 else f"time-{i}"
+            column = name if i % 2 else f"time-{i}"
             columns.append(column)
 
     # read csv
-    df = pd.read_csv(
-        filepath,
-        names=columns,
-        skiprows=skiprows
-    )
+    df = pd.read_csv(filepath, names=columns, skiprows=skiprows)
 
     # check that all time columns are synchronized
     for col_time in columns[2::2]:
@@ -68,11 +65,7 @@ def parse_csv(
     return df.rename({df.columns[0]: "time"}, axis=1)
 
 
-def process_data(
-    df,
-    col_camera="camera",
-    col_stim="stim"
-):
+def process_data(df, col_camera="camera", col_stim="stim"):
     """Process DataFrame.
 
     Returns a processed DataFrame with columns for frame number,
@@ -102,61 +95,20 @@ def process_data(
     if hist.min() == hist[1]:
         df["stimulated"] = df.loc[:, col_stim] > bin_edges[1]
     else:
-        raise ValueError("Unable to determine threshold for stimulus on/off signal." +
-                         f"Is the stimulus signal `{col_stim}` correct?")
+        msg = (
+            "Unable to determine threshold for stimulus on/off signal. "
+            f"Is the stimulus signal `{col_stim}` correct?"
+        )
+        raise ValueError(msg)
 
     # get frame count from cumulative sum of positive changes to camera signal
     # basically frame count is incremented each time the camera switches back on
-    df["frame"] = df["camera_BOOL"]\
-        .astype(int)\
-        .diff()\
-        .fillna(0)\
-        .clip(0, None)\
-        .cumsum()\
-        .astype(int)
+    df["frame"] = df["camera_BOOL"].astype(int).diff().fillna(0).clip(0, None).cumsum().astype(int)
 
     # create new DataFrame where each row marks the start of a new frame
-    df_frames = df.loc[
-        df["frame"].diff().fillna(0) > 0,
-        ["frame", "stimulated", "time"]
-    ]
+    df_frames = df.loc[df["frame"].diff().fillna(0) > 0, ["frame", "stimulated", "time"]]
     # calculate frame time and frame rate
-    df_frames["frametime"] = df_frames["time"]\
-        .diff()\
-        .shift(-1)\
-        .fillna(-1)\
-        .round(7)
+    df_frames["frametime"] = df_frames["time"].diff().shift(-1).fillna(-1).round(7)
     df_frames["framerate"] = (1 / df_frames["frametime"]).round(7)
 
     return df_frames
-    
-
-if __name__ == "__main__":
-
-    # packages in main only
-    from pathlib import Path
-    from natsort import natsorted
-    from tqdm import tqdm
-
-    # location where all experimental data is kept
-    dir_experiments = Path("/Users/ryanlane/Projects/brain_imaging/data_experimental/")
-    # path to a particular (or set of) experiment(s) for analysis
-    date = "2024-02-14"
-    expt = "exp3_1"
-    # collect csv files
-    fps_csv = natsorted((dir_experiments/date/expt).glob("*.csv"))
-
-    # process the csvs
-    for fp in tqdm(fps_csv):
-    
-        # parse csv
-        df_daq = parse_csv(
-            filepath=fp,
-        )
-
-        # process csv
-        df_frames = process_data(df_daq)
-
-        # export processed DataFrame
-        fp_out = fp.parent / (fp.stem + "_processed.txt")
-        df_frames.to_csv(fp_out, index=False)
