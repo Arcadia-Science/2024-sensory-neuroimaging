@@ -14,9 +14,7 @@ from skimage.transform import downscale_local_mean
 
 
 def load_user_config(config_name:str = 'default') -> dict:
-    """Load user config file
-
-    """
+    """Load user config file containing user-set paths"""
 
     with open(Path(__file__).parents[3] / 'config' / (config_name + '.json')) as f:
         config = json.load(f)
@@ -101,18 +99,10 @@ def _identify_trial_save_paths(exp_dir:str, trial_dir:str, params:dict) -> tuple
         tuple
             (Path to the raw tiff stack, Path to the processed tiff stack)
     """
-    load_from_s3 = params["load_from_s3"]
-    save_to_s3 = params["save_to_s3"]
-    if load_from_s3:
-        print("Loading raw stack from S3")
-    else:
-        print("Loading raw stack from local filesystem")
+    config = load_user_config('default')
 
-    trial_path = params["s3fs_toplvl_path"] if load_from_s3 else params["local_toplvl_path"]
-    save_path = params["s3fs_toplvl_path"] if save_to_s3 else params["local_toplvl_path"]
-
-    trial_path = Path(trial_path) / exp_dir / trial_dir
-    save_path = Path(save_path) / exp_dir / trial_dir
+    trial_path = Path(config['raw_data_dir']) / exp_dir / trial_dir
+    save_path = Path(config['processed_data_dir']) / exp_dir / trial_dir
     return (trial_path, save_path)
 
 def _get_sync_info(sync_csv_path, col_stim = 'button'):
