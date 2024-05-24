@@ -8,7 +8,7 @@
 
 
 ## Overview
-Data analysis scripts and notebooks for the translation pilot "Brain imaging of pruritogen responses". Contains all code necessary to reproduce figures and results from the pub.
+Microscope control software, data analysis scripts and notebooks for the translation pilot "Brain imaging of pruritogen responses". Contains all code necessary to reproduce figures and results from the pub.
 
 ## Installation and Setup
 
@@ -24,6 +24,11 @@ To install the package in development mode, run:
 ```{bash}
 pip install -e .
 ```
+## Microscope control code
+
+The Arduino firmware code to control the LED and the tactile stimulator is in `microscope/Arduino/LED_stimulator_control`. This code should be loaded onto the Teensy microcontroller. User should make sure that the pin assignments within the code correspond to the physical circuit (see [Couto et al 2021](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC8788140/)) as a starting point.
+
+The Python code to control the microcontroller is `microscope/Python/launch_stim.py`. Launch this code using the command-line to initiate the LED and the stimulator (if needed). Example usage cases are shown in the file.
 
 ## Neuroimaging analysis pipeline
 

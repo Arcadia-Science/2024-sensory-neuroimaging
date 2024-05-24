@@ -10,7 +10,7 @@ STIMULATOR_OFF_TIME_S = 4 # seconds that the tactile stimulator is off per stimu
 if __name__ == '__main__':
     '''
     Controls the Teensy microcontroller to launch the tactile stimulator
-    and the LED light for a given duration.
+    and the LED light for a given duration. Note: assumes Teensy is connected to COM1.
 
     Args:
         --duration: int, overall duration of the recording in seconds
@@ -24,6 +24,10 @@ if __name__ == '__main__':
 
         * Turns on the blue LED light for 300 seconds
         * Launches the tactile stimulator (2s on, 4s off, hardcoded above)
+
+        ```python launch_stim.py --light RESET```
+
+        * Turns off all LEDs and stimulator
     '''
     parser = argparse.ArgumentParser(
                     prog='Launch stim')
