@@ -13,6 +13,15 @@ from skimage.segmentation import flood
 from skimage.transform import downscale_local_mean
 
 
+def load_user_config(config_name:str = 'default') -> dict:
+    """Load user config file
+
+    """
+
+    with open(Path(__file__).parents[3] / 'config' / (config_name + '.json')) as f:
+        config = json.load(f)
+    return config
+
 def compute_breathing_rate(signal: np.array, fs:float) -> np.array:
     """Compute breathing rate from signal using spectrogram. Not currently being used in the pipeline.
 
