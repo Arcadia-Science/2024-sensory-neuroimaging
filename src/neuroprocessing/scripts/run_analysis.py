@@ -3,46 +3,32 @@
 Runs analysis pipeline (preprocess and process). Callable from command line.
  """
 
-import argparse
-import datetime
 import json
 from pathlib import Path
 
+import click
 import tqdm
 from neuroprocessing.scripts.analysis import preprocess_and_process_trial
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description=(
-        'Run analysis (pre-process and processing steps).',
-        'Default parameters are loaded from `analysis_runs/default_analysis_params.json`.'))
 
-    # Define arguments with defaults from JSON file
-    parser.add_argument('--date', type=str, required=True,
-                        help='Experiment date folder to analyze(required)')
-    parser.add_argument('--trial', type=str, required=False,
-                        help='Trial folder to analyze (optional). If not provided, all trials in '
-                        'the experiment folder will be analyzed.')
-    parser.add_argument('--params_file', type=str, required=True,
-                        help='Path to JSON file containing analysis parameters (required). See README.md for details.')
-    parser.add_argument('--reanalyze', action='store_true',
-                        help='If True, reanalyze all trials, even if already processed.'
-                        'Processed folders have a params.json file.')
+@click.command()
+@click.option('--date', type=str, required=True, help='Experiment date folder to analyze.')
+@click.option('--params_file', type=str, required=True, help='Path to JSON file containing analysis parameters. See README.md for details.')
+@click.option('--trial', type=str, required=False, help='Trial folder to analyze. If not provided, all trials in the experiment folder will be analyzed.')
+@click.option('--reanalyze', is_flag=True, help='If set, reanalyze all trials, even if already processed. Processed folders have a params.json file.')
+def run_analysis(date, trial, params_file, reanalyze):
 
-    args = parser.parse_args()
-
-    args = vars(args)  # Convert argparse Namespace to dict
-    # Load parameters from JSON file
-    if not Path(args['params_file']).exists():
-        raise FileNotFoundError(f"Parameters file {args['params_file']} does not exist.")
-    with open(args['params_file']) as f:
+    if not Path(params_file).exists():
+        raise FileNotFoundError(f"Parameters file {params_file} does not exist.")
+    with open(params_file) as f:
         params = json.load(f)
 
-    exp_path = Path(params['local_toplvl_path']) / args['date']
+    exp_path = Path(params['local_toplvl_path']) / date
     if not exp_path.exists():
         raise FileNotFoundError(f"Experiment date folder {exp_path} does not exist.")
 
-    if args['trial']:
-        trial_dirs = [Path(args['trial'])]
+    if trial:
+        trial_dirs = [Path(trial)]
     else:
         trial_dirs = [t_d for t_d in exp_path.iterdir() if t_d.is_dir()]
     if not trial_dirs:
@@ -62,8 +48,13 @@ if __name__ == '__main__':
         params['downsample_factor'] = 2 if is_tactile_stim_trial else 8
         params['secs_before_stim'] = 0 if is_tactile_stim_trial else 60
 
-        if args['reanalyze'] or not (trial_dir / 'params.json').exists():
+        if reanalyze or not (trial_dir / 'params.json').exists():
             print(f"Processing {trial_dir.name}...")
-            preprocess_and_process_trial(args['date'], trial_dir.name, params)
+            preprocess_and_process_trial(date, trial_dir.name, params)
         else:
             print(f"Skipping {trial_dir.name} (already processed).")
+
+
+
+if __name__ == '__main__':
+    run_analysis()
