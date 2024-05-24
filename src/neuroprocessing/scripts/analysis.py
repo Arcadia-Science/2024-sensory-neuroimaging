@@ -4,7 +4,7 @@ from pathlib import Path
 import numpy as np
 from natsort import natsorted
 from neuroprocessing.align import StackAligner
-from neuroprocessing.scripts.parse_csv import parse_csv, process_data
+from neuroprocessing.parse_sync_file import parse_nidaq_csv, process_nidaq_dataframe
 from scipy import ndimage
 from scipy.interpolate import CubicSpline
 from scipy.signal import find_peaks, spectrogram
@@ -13,8 +13,9 @@ from skimage.segmentation import flood
 from skimage.transform import downscale_local_mean
 
 
-def compute_breathing_rate(signal: np.array, fs:float) -> np.array:
-    """Compute breathing rate from signal using spectrogram. Not currently being used in the pipeline.
+def compute_breathing_rate(signal: np.array, fs: float) -> np.array:
+    """Compute breathing rate from signal using spectrogram.
+    Not currently being used in the pipeline.
 
     Example usage:
     ```python
@@ -35,16 +36,14 @@ def compute_breathing_rate(signal: np.array, fs:float) -> np.array:
         np.array: 1D numpy array of breathing rate, interpolated to be the same length as signal
     """
 
-    min_peak_height = 100 # minimum height of freq peak in spectrogram
-    min_breathing_freq, max_breathing_freq = 0.5, 2 # frequency range to look for breathing rate (Hz)
-    spectrogram_nperseg = 200 # number of samples per segment in spectrogram
-    spectrogram_noverlap = 50 # number of samples to overlap between segments in spectrogram
+    min_peak_height = 100  # minimum height of freq peak in spectrogram
+    min_breathing_freq, max_breathing_freq = (0.5, 2)  # freq range to look for breathing rate (Hz)
+    spectrogram_nperseg = 200  # number of samples per segment in spectrogram
+    spectrogram_noverlap = 50  # number of samples to overlap between segments in spectrogram
 
-
-    f, t, Sxx = spectrogram(signal, fs, nperseg=spectrogram_nperseg, noverlap=spectrogram_noverlap, detrend = 'linear')
-    # plt.pcolormesh(t, f, Sxx, shading='gouraud')
-    # plt.ylim(0, 3)
-
+    f, t, Sxx = spectrogram(
+        signal, fs, nperseg=spectrogram_nperseg, noverlap=spectrogram_noverlap, detrend="linear"
+    )
 
     breathing_freqs = (f > min_breathing_freq) & (f < max_breathing_freq)
     Sxx_breathing = Sxx[breathing_freqs]
@@ -52,7 +51,7 @@ def compute_breathing_rate(signal: np.array, fs:float) -> np.array:
     # find peaks in spectrogram
     f_peak_array = []
     for i in range(Sxx_breathing.shape[1]):
-        peaks, _ = find_peaks(Sxx_breathing[:,i], height=min_peak_height, distance=4)
+        peaks, _ = find_peaks(Sxx_breathing[:, i], height=min_peak_height, distance=4)
         # if >1 peak, keep only highest
         if len(peaks) > 0:
             peaks = [peaks[np.argmax(Sxx_breathing[peaks, i])]]
@@ -66,19 +65,14 @@ def compute_breathing_rate(signal: np.array, fs:float) -> np.array:
     # remove nans
     t_peak_array = t[~np.isnan(f_peak_array)]
     f_peak_array = f_peak_array[~np.isnan(f_peak_array)]
-    # plt.plot(t_peak_array,f_peak_array)
 
     # interpolate back to be the same size as roi_mean
-    f_peak_interp = CubicSpline(t_peak_array, f_peak_array, bc_type='natural')
+    f_peak_interp = CubicSpline(t_peak_array, f_peak_array, bc_type="natural")
 
     return f_peak_interp(np.arange(0, len(signal)) / fs)
 
 
-
-
-
-
-def _identify_trial_save_paths(exp_dir:str, trial_dir:str, params:dict) -> tuple:
+def _identify_trial_save_paths(exp_dir: str, trial_dir: str, params: dict) -> tuple:
     """Identify the paths to the raw and processed tiff stacks for a single trial
 
     Inputs:
@@ -106,41 +100,46 @@ def _identify_trial_save_paths(exp_dir:str, trial_dir:str, params:dict) -> tuple
     save_path = Path(save_path) / exp_dir / trial_dir
     return (trial_path, save_path)
 
-def _get_sync_info(sync_csv_path, col_stim = 'button'):
+
+def _get_sync_info(sync_csv_path, stimulus_column_name="button"):
     """Get dict of sync info (stim time, etc) from the sync csv file
 
     Inputs:
         sync_csv_path: str
             Path to the sync csv file
-        col_stim: str
-            Column name in the csv file that should be used for stimulus. 'button' means read the button channel. 'stim' means read the vibration motor channel
+        stimulus_column_name: str
+            Column name in the csv file that should be used for stimulus.
+            'button' means read the button channel.
+            'stim' means read the vibration motor channel.
     """
-    df_daq = parse_csv(sync_csv_path)
+    df_daq = parse_nidaq_csv(sync_csv_path)
 
-    df_frames = process_data(
+    df_frames = process_nidaq_dataframe(
         df_daq,
-        col_camera="camera",
-        col_stim=col_stim
+        camera_column_name="camera",
+        stimulus_column_name=stimulus_column_name,
     )
 
     # stim_onset_frame = int(df_frames.loc[df_frames["stimulated"], "frame"].iloc[0])
     df_frames.set_index("frame", inplace=True)
 
-    stim_onset_frame = np.where((df_frames['stimulated'] == True) & (df_frames['stimulated'].shift(1) == False))[0].tolist()  # noqa: E712, E501
+    stim_onset_frame = np.where(
+        (df_frames["stimulated"] == True) & (df_frames["stimulated"].shift(1) == False)
+    )[0].tolist()  # noqa: E712, E501
 
     n_stims = len(stim_onset_frame)
     print(f"Stimulus onset frame: {stim_onset_frame}")
     print(f"Stimulus onset time (s): {df_frames.loc[stim_onset_frame, 'time'].values}")
-    stim_duration_frames = sum(df_frames['stimulated'])
-    frame_time_s = df_frames.loc[stim_onset_frame, 'frametime'].mean()
-    framerate_hz = 1/frame_time_s
+    stim_duration_frames = sum(df_frames["stimulated"])
+    frame_time_s = df_frames.loc[stim_onset_frame, "frametime"].mean()
+    framerate_hz = 1 / frame_time_s
 
     sync_info = {
         "Number of stimulations": n_stims,
         "stim_onset_frame": stim_onset_frame,
         "stim_duration_frames": stim_duration_frames,
         "frame_time_s": frame_time_s,
-        "framerate_hz": framerate_hz
+        "framerate_hz": framerate_hz,
     }
     print(f"Number of stimulations: {n_stims}")
     print(f"Stimulus duration (overall) (frames): {stim_duration_frames}")
@@ -150,24 +149,29 @@ def _get_sync_info(sync_csv_path, col_stim = 'button'):
 
     return sync_info
 
+
 def _get_brain_mask(stack, flood_connectivity=20, flood_tolerance=1000):
-    """Return a binary mask of the brain from the tiff stack using the maximum projection of the stack and flood-fill algorithm
-    """
+    """Return a binary mask of the brain from the tiff stack using the maximum
+    projection of the stack and flood-fill algorithm."""
     stack_max = stack.max(axis=0)
     stack_max_clipped = stack_max.copy()
-    stack_max_clipped[stack_max_clipped > np.median(stack_max) ] = np.median(stack_max)
+    stack_max_clipped[stack_max_clipped > np.median(stack_max)] = np.median(stack_max)
 
     # create mask for the brain, starting from the center of the image
-    mask = flood(stack_max_clipped, (int(stack_max_clipped.shape[0]/2), int(stack_max_clipped.shape[1]/2)), 
-                 connectivity=flood_connectivity, 
-                 tolerance=flood_tolerance)
+    mask = flood(
+        stack_max_clipped,
+        (int(stack_max_clipped.shape[0] / 2), int(stack_max_clipped.shape[1] / 2)),
+        connectivity=flood_connectivity,
+        tolerance=flood_tolerance,
+    )
     mask = ndimage.binary_dilation(mask, iterations=10)
     return mask
 
-def process_trial(exp_dir:str, trial_dir:str, params:dict):
+
+def process_trial(exp_dir: str, trial_dir: str, params: dict):
     """Process single trial
 
-    Process a single imaging trial and save the processed tiff stack to the same directory as the 
+    Process a single imaging trial and save the processed tiff stack to the same directory as the
     original tiff stack.
 
     Inputs:
@@ -203,39 +207,43 @@ def process_trial(exp_dir:str, trial_dir:str, params:dict):
 
     # if 0, process all frames, otherwise only process frames starting at X seconds before stimulus
     if frames_before_stim > 0:
-        stack = stack[int((sync_info["stim_onset_frame"][0] - frames_before_stim)
-                          /params['downsample_factor']):, :, :]
+        initial_stim_frame = int(
+            (sync_info["stim_onset_frame"][0] - frames_before_stim) / params["downsample_factor"]
+        )
+        stack = stack[initial_stim_frame:, :, :]
 
-
-    mask = _get_brain_mask(stack,
-                           flood_connectivity=params["flood_connectivity"],
-                           flood_tolerance=params["flood_tolerance"])
+    mask = _get_brain_mask(
+        stack,
+        flood_connectivity=params["flood_connectivity"],
+        flood_tolerance=params["flood_tolerance"],
+    )
 
     # find bottom X% of pixels in brain
-    bottomX = np.percentile(stack[:, mask],
-                            params['bottom_percentile'],
-                            axis=1,
-                            keepdims=True
-                            ).astype(np.uint16)
+    bottomX = np.percentile(
+        stack[:, mask],
+        params["bottom_percentile"],
+        axis=1,
+        keepdims=True,
+    ).astype(np.uint16)
 
     # subtract bottom X% from all pixels, preventing overflow (rudimentary bleach correction)
-    stack -= stack.clip(None, bottomX[:,np.newaxis])
+    stack -= stack.clip(None, bottomX[:, np.newaxis])
     stack -= stack.min(axis=0, keepdims=True)
 
     # set pixels outside of mask to 0
     stack[:, ~mask] = 0
 
     # save mask
-    np.save(save_path / ('mask_' + params["process_prefix"] + trial_dir + '.npy'), mask)
+    np.save(save_path / ("mask_" + params["process_prefix"] + trial_dir + ".npy"), mask)
 
     # save params
     with open(save_path / "params.json", "w") as f:
         json.dump(params, f)
     # save tiff stack with the name of the first tiff in the stack
-    io.imsave(save_path / (params["process_prefix"] + trial_dir + '.tif'), stack)
+    io.imsave(save_path / (params["process_prefix"] + trial_dir + ".tif"), stack)
 
 
-def preprocess_trial(exp_dir:str, trial_dir:str, params:dict):
+def preprocess_trial(exp_dir: str, trial_dir: str, params: dict):
     """Preprocessing of a single imaging trial
 
     A single trial may have multiple videos due to tiff file size limits.
@@ -251,9 +259,9 @@ def preprocess_trial(exp_dir:str, trial_dir:str, params:dict):
             preprocess_trial("2024-03-06", "Zyla_15min_LHL_salineinj_1pt75pctISO_1", params)
 
     Inputs:
-        exp_dir: str 
+        exp_dir: str
             Experiment dir e.g. "2024-03-06"
-        trial_dir: str 
+        trial_dir: str
             Trial dir e.g. "Zyla_15min_LHL_salineinj_1pt75pctISO_1"
         params: dict
             Parameters of the run (see `run_analysis.py`)
@@ -267,7 +275,7 @@ def preprocess_trial(exp_dir:str, trial_dir:str, params:dict):
     if not fp_csv:
         print(f"No sync file found in {trial_path}")
     else:
-        sync_info = _get_sync_info(fp_csv[0], col_stim=params['sync_csv_col'])
+        sync_info = _get_sync_info(fp_csv[0], stimulus_column_name=params["sync_csv_col"])
         # save sync info as json
         with open(save_path / "sync_info.json", "w") as f:
             json.dump(sync_info, f)
@@ -280,30 +288,34 @@ def preprocess_trial(exp_dir:str, trial_dir:str, params:dict):
         raise FileNotFoundError(f"No tiff files found in {trial_path}")
 
     # Downsample and average image in time to denoise
-    stack_downsampled = downscale_local_mean(np.concatenate(stack_list, axis=0),
-                                             factors=(params['downsample_factor'], 1, 1))
+    stack_downsampled = downscale_local_mean(
+        np.concatenate(stack_list, axis=0), factors=(params["downsample_factor"], 1, 1)
+    )
     # delete large stack_list variable to free up memory
     del stack_list
 
     aligner = StackAligner(
-            stack=stack_downsampled,
-            target_num_features = params["aligner_target_num_features"]
-        )
+        stack=stack_downsampled,
+        target_num_features=params["aligner_target_num_features"],
+    )
     aligner.align()
 
     # save params
     with open(save_path / "params.json", "w") as f:
         json.dump(params, f)
-    io.imsave(save_path / (params["preprocess_prefix"] + trial_dir + ".tif"),
-              (aligner.stack_aligned).astype(np.uint16))
+    io.imsave(
+        save_path / (params["preprocess_prefix"] + trial_dir + ".tif"),
+        (aligner.stack_aligned).astype(np.uint16),
+    )
 
-def preprocess_and_process_trial(exp_dir:str, trial_dir:str, params:dict):
+
+def preprocess_and_process_trial(exp_dir: str, trial_dir: str, params: dict):
     """Preprocess and process a single trial
 
     Inputs:
-        exp_dir: str 
+        exp_dir: str
             Experiment dir e.g. "2024-03-06"
-        trial_dir: str 
+        trial_dir: str
             Trial dir e.g. "Zyla_15min_LHL_salineinj_1pt75pctISO_1"
         params: dict
             Parameters of the run (see `run_analysis.py`)
