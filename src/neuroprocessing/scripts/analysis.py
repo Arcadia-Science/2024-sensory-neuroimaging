@@ -4,7 +4,7 @@ from pathlib import Path
 import numpy as np
 from natsort import natsorted
 from neuroprocessing.align import StackAligner
-from neuroprocessing.parse_csv import parse_nidaq_csv, process_nidaq_dataframe
+from neuroprocessing.parse_sync_file import parse_nidaq_csv, process_nidaq_dataframe
 from scipy import ndimage
 from scipy.interpolate import CubicSpline
 from scipy.signal import find_peaks, spectrogram
