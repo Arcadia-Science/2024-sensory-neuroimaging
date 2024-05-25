@@ -8,7 +8,7 @@
 
 
 ## Overview
-Microscope control software, data analysis scripts and notebooks for the translation pilot "Brain imaging of pruritogen responses". Contains all code necessary to reproduce figures and results from the pub.
+This repo contains microscope control software, data analysis scripts, and notebooks for the translation pilot "Brain imaging of pruritogen responses". This includes all the code necessary to reproduce figures and results from the pub.
 
 ## Installation and Setup
 
@@ -24,11 +24,20 @@ To install the package in development mode, run:
 ```{bash}
 pip install -e .
 ```
+
+To create the microscope environment on the computer that will control the microscope, run:
+
+```{bash}
+conda create -n env-microscope --file microscope/Python/env-microscope.yml
+```
+
 ## Microscope control code
 
-The Arduino firmware code to control the LED and the tactile stimulator is in `microscope/Arduino/LED_stimulator_control`. This code should be loaded onto the Teensy microcontroller. User should make sure that the pin assignments within the code correspond to the physical circuit (see [Couto et al 2021](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC8788140/)) as a starting point.
+The Arduino firmware code to control the LED and the tactile stimulator is in `microscope/Arduino/LED_stimulator_control`. This code should be loaded onto the Teensy microcontroller using the Arduino IDE (version 2.3.2, [download here](https://www.arduino.cc/en/software)). ([Teensy 4.0](https://www.pjrc.com/store/teensy40.html) was used for this project). User should make sure that the pin assignments within the code correspond to the physical circuit (see [Couto et al 2021](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC8788140/)) as a starting point.
 
-The Python code to control the microcontroller is `microscope/Python/launch_stim.py`. Launch this code using the command-line to initiate the LED and the stimulator (if needed). Example usage cases are shown in the file.
+The Python code to control the microcontroller is `microscope/Python/launch_stim.py`. This should be run on the computer that controls the microscope hardware. To use, first activate the microscope's conda environment (`conda activate env-microscope`). 
+
+Launch this code using the command-line to initiate the LED and the stimulator (if needed). Example usage cases are shown in the file.
 
 ## Neuroimaging analysis pipeline
 

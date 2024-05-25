@@ -1,5 +1,5 @@
 /*
-Firmware running on Teensy 4.2 used to control the LEDs and tactile stimulator
+Firmware running on Teensy 4.0 used to control the LEDs and tactile stimulator
 
 The microcontroller receives serial commands from the PC to control the LEDs and tactile stimulator.
 LEDs can be turned on/off with serial commands (e.g. "SET BLUE_STATUS 1; "SET BLUE_STATUS 0;").
@@ -66,7 +66,7 @@ void setup() {
 
 // Serial handler
 void serialEvent() {
-  // concatinate incoming characters from the serial port
+  // concatenate incoming characters from the serial port
   while (Serial.available() > 0) {
     char c = Serial.read();
     // Add any characters that aren't the end of a command (semicolon) to the input buffer.
@@ -111,7 +111,7 @@ void parseCommand(char* command) {
 
 void loop() {
   
-  // if alternate status, attach inteerupt to camera trigger to switch LEDs
+  // if alternate status, attach interrupt to camera trigger to switch LEDs.
   if ((ALTERNATE_STATUS == 1) & (ALTERNATE_STATUS_OLD == 0)){ // first instance of alternate mode
     attachInterrupt(digitalPinToInterrupt(IN_STROBE), camera_triggered, RISING);
     ALTERNATE_STATUS_OLD = 1;
