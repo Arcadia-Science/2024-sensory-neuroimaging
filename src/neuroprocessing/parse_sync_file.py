@@ -1,9 +1,10 @@
 import csv
+
 import numpy as np
 import pandas as pd
 
 
-def parse_csv(
+def parse_nidaq_csv(
     filepath,
     columns=None,
     row_channels=3,
@@ -36,7 +37,7 @@ def parse_csv(
             r = csv.reader(f)
             # csv is usually huge so only read up to row {row_channels}
             # (where the name of each channel should be)
-            for i in range(row_channels):
+            for _i in range(row_channels):
                 channels = next(r)
 
         # channels now resembles
@@ -47,35 +48,30 @@ def parse_csv(
         for i, name in enumerate(channels):
             # rather hacky but only even columns are duplicates (all
             # 'Channel name') so rename those to time-0, time-2, etc.
-            column = name if i%2 else f"time-{i}"
+            column = name if i % 2 else f"time-{i}"
             columns.append(column)
 
     # read csv
-    df = pd.read_csv(
-        filepath,
-        names=columns,
-        skiprows=skiprows
-    )
+    nidaq_dataframe = pd.read_csv(filepath, names=columns, skiprows=skiprows)
 
     # check that all time columns are synchronized
     for col_time in columns[2::2]:
-        if (df.loc[:, columns[0]] != df.loc[:, col_time]).any():
-            raise ValueError("Time is not synchronized between devices.")
-        # drop (duplicate) column
-        df.drop(col_time, axis=1, inplace=True)
+        if (nidaq_dataframe.loc[:, columns[0]] != nidaq_dataframe.loc[:, col_time]).any():
+            msg = "Time is not synchronized between devices."
+            raise ValueError(msg)
+        # drop duplicate time columns
+        nidaq_dataframe.drop(col_time, axis=1, inplace=True)
 
     # rename time column and return DataFrame
-    return df.rename({df.columns[0]: "time"}, axis=1)
+    return nidaq_dataframe.rename({nidaq_dataframe.columns[0]: "time"}, axis=1)
 
 
-def process_data(
-    df,
-    col_camera="camera",
-    col_stim="stim"
+def process_nidaq_dataframe(
+    nidaq_dataframe, camera_column_name="camera", stimulus_column_name="stim"
 ):
-    """Process DataFrame.
+    """Process NI DAQ dataframe.
 
-    Returns a processed DataFrame with columns for frame number,
+    Returns a processed dataframe with columns for frame number,
     stimulated status, and frame rate.
         frame | stimulated | time | frametime | framerate
         ----- | ---------- | ---- | --------- | ---------
@@ -83,7 +79,30 @@ def process_data(
             2 |      False | 2.93 |    0.0565 | 17.699115
             3 |      False | 2.99 |    0.0565 | 17.699115
             4 |      False | 3.04 |    0.0565 | 17.699115
+
+    Parameters
+    ----------
+    nidaq_dataframe : pd.DataFrame
+        Input dataframe returned by `parse_nidaq_csv`.
+    camera_column_name : str
+        Column name containing the camera signal data.
+    stimulus_column_name : str
+        Column name containing the stimulus signal data.
+
+    Returns
+    -------
+    frames_dataframe : pd.DataFrame
+        Processed dataframe
     """
+    # check that camera and stimulus column names exist in the input dataframe
+    if camera_column_name not in nidaq_dataframe:
+        msg = f"'{camera_column_name}' is not in column names: {nidaq_dataframe.columns.tolist()}."
+        raise ValueError(msg)
+    if stimulus_column_name not in nidaq_dataframe:
+        msg = (
+            f"'{stimulus_column_name}' is not in column names: {nidaq_dataframe.columns.tolist()}."
+        )
+        raise ValueError(msg)
 
     # estimate threshold for camera on/off signal based on voltage distribution
     # | idea is that there will be a low and high value (which are unknown)
@@ -91,72 +110,47 @@ def process_data(
     # | low values, an almost empty bin of mid-range values, and a rather
     # | dense bin of high values. threshold is set at the edge of the lowest
     # | bin as long as middle bin is the least populated.
-    hist, bin_edges = np.histogram(df.loc[:, col_camera], bins=3, density=True)
+    hist, bin_edges = np.histogram(nidaq_dataframe.loc[:, camera_column_name], bins=3, density=True)
     if hist.min() == hist[1]:
-        df["camera_BOOL"] = df.loc[:, col_camera] > bin_edges[1]
+        nidaq_dataframe["camera_BOOL"] = nidaq_dataframe.loc[:, camera_column_name] > bin_edges[1]
     else:
-        raise ValueError("Unable to determine threshold for camera on/off signal.")
+        msg = (
+            "Unable to determine threshold for camera on/off signal. "
+            f"Is '{camera_column_name}' the correct column name for the camera?"
+        )
+        raise ValueError(msg)
 
     # do the same for stimulus on/off signal
-    hist, bin_edges = np.histogram(df.loc[:, col_stim], bins=3, density=True)
+    hist, bin_edges = np.histogram(
+        nidaq_dataframe.loc[:, stimulus_column_name], bins=3, density=True
+    )
     if hist.min() == hist[1]:
-        df["stimulated"] = df.loc[:, col_stim] > bin_edges[1]
+        nidaq_dataframe["stimulated"] = nidaq_dataframe.loc[:, stimulus_column_name] > bin_edges[1]
     else:
-        raise ValueError("Unable to determine threshold for stimulus on/off signal." +
-                         f"Is the stimulus signal `{col_stim}` correct?")
+        msg = (
+            "Unable to determine threshold for stimulus on/off signal. "
+            f"Is '{stimulus_column_name}' the correct column name for the stimulus?"
+        )
+        raise ValueError(msg)
 
     # get frame count from cumulative sum of positive changes to camera signal
     # basically frame count is incremented each time the camera switches back on
-    df["frame"] = df["camera_BOOL"]\
-        .astype(int)\
-        .diff()\
-        .fillna(0)\
-        .clip(0, None)\
-        .cumsum()\
+    nidaq_dataframe["frame"] = (
+        nidaq_dataframe["camera_BOOL"]
         .astype(int)
+        .diff()
+        .fillna(0)
+        .clip(0, None)
+        .cumsum()
+        .astype(int)
+    )
 
     # create new DataFrame where each row marks the start of a new frame
-    df_frames = df.loc[
-        df["frame"].diff().fillna(0) > 0,
-        ["frame", "stimulated", "time"]
+    frames_dataframe = nidaq_dataframe.loc[
+        nidaq_dataframe["frame"].diff().fillna(0) > 0, ["frame", "stimulated", "time"]
     ]
     # calculate frame time and frame rate
-    df_frames["frametime"] = df_frames["time"]\
-        .diff()\
-        .shift(-1)\
-        .fillna(-1)\
-        .round(7)
-    df_frames["framerate"] = (1 / df_frames["frametime"]).round(7)
+    frames_dataframe["frametime"] = frames_dataframe["time"].diff().shift(-1).fillna(-1).round(7)
+    frames_dataframe["framerate"] = (1 / frames_dataframe["frametime"]).round(7)
 
-    return df_frames
-    
-
-if __name__ == "__main__":
-
-    # packages in main only
-    from pathlib import Path
-    from natsort import natsorted
-    from tqdm import tqdm
-
-    # location where all experimental data is kept
-    dir_experiments = Path("/Users/ryanlane/Projects/brain_imaging/data_experimental/")
-    # path to a particular (or set of) experiment(s) for analysis
-    date = "2024-02-14"
-    expt = "exp3_1"
-    # collect csv files
-    fps_csv = natsorted((dir_experiments/date/expt).glob("*.csv"))
-
-    # process the csvs
-    for fp in tqdm(fps_csv):
-    
-        # parse csv
-        df_daq = parse_csv(
-            filepath=fp,
-        )
-
-        # process csv
-        df_frames = process_data(df_daq)
-
-        # export processed DataFrame
-        fp_out = fp.parent / (fp.stem + "_processed.txt")
-        df_frames.to_csv(fp_out, index=False)
+    return frames_dataframe
