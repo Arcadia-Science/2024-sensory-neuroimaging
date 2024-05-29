@@ -1,0 +1,4 @@
+{
+    "processed_data_dir": "path/to/processed_data",
+    "raw_data_dir": "path/to/rawdata"
+}

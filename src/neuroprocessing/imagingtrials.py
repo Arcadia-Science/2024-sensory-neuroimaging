@@ -163,8 +163,6 @@ class ImagingTrial:
             "mask_" + self.params["process_prefix"] + self.trial_dir + ".npy",
         )
 
-        print(f"Loading mask file from: {mask_path}")
-
         mask = np.load(mask_path)
         return mask
 

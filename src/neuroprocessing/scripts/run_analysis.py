@@ -8,7 +8,7 @@ from pathlib import Path
 
 import click
 import tqdm
-from neuroprocessing.scripts.analysis import preprocess_and_process_trial
+from neuroprocessing.scripts.analysis import load_user_config, preprocess_and_process_trial
 
 
 @click.command()
@@ -23,7 +23,9 @@ def run_analysis(date, trial, params_file, reanalyze):
     with open(params_file) as f:
         params = json.load(f)
 
-    exp_path = Path(params['local_toplvl_path']) / date
+    config = load_user_config('default')
+
+    exp_path = Path(config['processed_data_dir']) / date
     if not exp_path.exists():
         raise FileNotFoundError(f"Experiment date folder {exp_path} does not exist.")
 

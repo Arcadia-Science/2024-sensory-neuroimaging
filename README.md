@@ -8,7 +8,7 @@
 
 
 ## Overview
-Data analysis scripts and notebooks for the translation pilot "Brain imaging of pruritogen responses". Contains all code necessary to reproduce figures and results from the pub.
+This repo contains microscope control software, data analysis scripts, and notebooks for the translation pilot "Brain imaging of pruritogen responses". This includes all the code necessary to reproduce figures and results from the pub.
 
 ## Installation and Setup
 
@@ -24,6 +24,20 @@ To install the package in development mode, run:
 ```{bash}
 pip install -e .
 ```
+
+To create the microscope environment on the computer that will control the microscope, run:
+
+```{bash}
+conda create -n env-microscope --file microscope/Python/env-microscope.yml
+```
+
+## Microscope control code
+
+The Arduino firmware code to control the LED and the tactile stimulator is in `microscope/Arduino/LED_stimulator_control`. This code should be loaded onto the Teensy microcontroller using the Arduino IDE (version 2.3.2, [download here](https://www.arduino.cc/en/software)). ([Teensy 4.0](https://www.pjrc.com/store/teensy40.html) was used for this project). User should make sure that the pin assignments within the code correspond to the physical circuit (see [Couto et al 2021](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC8788140/)) as a starting point.
+
+The Python code to control the microcontroller is `microscope/Python/launch_stim.py`. This should be run on the computer that controls the microscope hardware. To use, first activate the microscope's conda environment (`conda activate env-microscope`). 
+
+Launch this code using the command-line to initiate the LED and the stimulator (if needed). Example usage cases are shown in the file.
 
 ## Neuroimaging analysis pipeline
 
@@ -41,11 +55,26 @@ This pipeline is designed to preprocess and analyze *in vivo* brain imaging data
     * Aggregate all imaging trials, filter them based on metadata (e.g. hindlimb stimulation only), output results
     * Sample usage in `notebooks/injection_analysis.ipynb`
 
+### Path configuration file
+* Paths to raw and processed data on the user's computer should be set in the configuration file `config/default.json` by default.
+
+Use the following template to create the configuration file:
+
+```json
+{
+    "processed_data_dir": "path/to/processed_data",
+    "raw_data_dir": "path/to/rawdata"
+}
+```
+
+This template is also located in `config/default_template.json`. Rename it to `default.json` and add the real data paths to run the scripts in this repository.
+
+
 ## Dataset
 
-The raw unprocessed experimental data are stored in an [AWS bucket](https://us-west-1.console.aws.amazon.com/s3/buckets/arcadia-neuroimaging-pruritogens). You may need to obtain permission to access it.
+The raw unprocessed experimental data are stored in a Zenodo repository [ADD LINK](). Processed data are stored in a Zenodo repository [ADD LINK]().
 
-### Required file structure
+### Experiment file structure
 
 * Raw imaging and NIDAQ sync data is stored in S3 buckets that are accessible using [S3FS](https://github.com/s3fs-fuse/s3fs-fuse). Follow instructions on S3FS to mount the S3 bucket to a local directory.
 * File structure is assumed to be `{top-level exp dir}/{exp date}/{trial dir}/{Tiff stacks and nidaq CSV files here}`
