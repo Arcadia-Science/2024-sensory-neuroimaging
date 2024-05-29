@@ -1,5 +1,5 @@
 import json
-import os
+from pathlib import Path
 import re
 
 import matplotlib.pyplot as plt
@@ -35,7 +35,7 @@ class ImagingTrial:
         """
         self.exp_dir = exp_dir
         self.trial_dir = trial_dir
-        self.base_path = base_path
+        self.base_path = Path(base_path)
         self.params = self._load_params()
         self.sync_info = self._get_sync_info()
         self.mask = None
@@ -50,11 +50,11 @@ class ImagingTrial:
         """
         Load the params metadata file for the trial.
         """
-        params_path = os.path.join(self.base_path, self.exp_dir, self.trial_dir, "params.json")
-        if not os.path.exists(params_path):
+        params_path = self.base_path / self.exp_dir / self.trial_dir / "params.json"
+        if not params_path.exists():
             print("Warning: No params file found for trial: ", self.trial_dir)
             return None
-        with open(params_path) as f:
+        with params_path.open() as f:
             params = json.load(f)
         return params
 
@@ -77,12 +77,7 @@ class ImagingTrial:
         """
         Loads the processed stack
         """
-        processed_stack_path = os.path.join(
-            self.base_path,
-            self.exp_dir,
-            self.trial_dir,
-            self.params["process_prefix"] + self.trial_dir + ".tif",
-        )
+        processed_stack_path = self.base_path / self.exp_dir / self.trial_dir / (self.params["process_prefix"] + self.trial_dir + ".tif")
         processed_stack = io.imread(processed_stack_path)
         return processed_stack
 
@@ -90,10 +85,8 @@ class ImagingTrial:
         """
         Loads the "sync_info.json" file for the trial.
         """
-        sync_info_path = os.path.join(
-            self.base_path, self.exp_dir, self.trial_dir, "sync_info.json"
-        )
-        with open(sync_info_path) as f:
+        sync_info_path = self.base_path / self.exp_dir / self.trial_dir / "sync_info.json"
+        with sync_info_path.open() as f:
             sync_info = json.load(f)
         return sync_info
 
@@ -156,12 +149,7 @@ class ImagingTrial:
         """
         Loads the "mask.npy" file for the trial.
         """
-        mask_path = os.path.join(
-            self.base_path,
-            self.exp_dir,
-            self.trial_dir,
-            "mask_" + self.params["process_prefix"] + self.trial_dir + ".npy",
-        )
+        mask_path = self.base_path / self.exp_dir / self.trial_dir / ("mask_" + self.params["process_prefix"] + self.trial_dir + ".npy")
 
         mask = np.load(mask_path)
         return mask
@@ -355,7 +343,7 @@ class ImagingTrialsLoader:
     """
 
     def __init__(self, base_path):
-        self.base_path = base_path
+        self.base_path = Path(base_path)
         exp_dirs, trial_dirs = self.collect_exps_and_trials()
 
         self.trials = [
@@ -388,27 +376,27 @@ class ImagingTrialsLoader:
 
         # List directories at the first level (exps)
         exp_dirs = [
-            d for d in os.listdir(self.base_path) if os.path.isdir(os.path.join(self.base_path, d))
+            d for d in self.base_path.iterdir() if d.is_dir()
         ]
 
         for exp in exp_dirs:
             # Path to the date directory
-            exp_dir_path = os.path.join(self.base_path, exp)
+            exp_dir_path = self.base_path / exp
 
             # List directories at the second level (trials)
             trial_dirs = [
-                d for d in os.listdir(exp_dir_path) if os.path.isdir(os.path.join(exp_dir_path, d))
+                d for d in exp_dir_path.iterdir() if d.is_dir()
             ]
 
             # Append date and exp information
             for trial in trial_dirs:
-                exps.append(exp)
-                trials.append(trial)
+                exps.append(exp.name)
+                trials.append(trial.name)
 
         return exps, trials
 
     def filter(self, **criteria):
-        """In-place (irreversibly) filter ImagingTrials based on criteria (wildcards allowed).
+        """Filter ImagingTrials based on criteria (wildcards allowed) into `filtered_trials` list.
 
         Input criteria are specified in `ImagingTrial._parse_filename()`.
 
