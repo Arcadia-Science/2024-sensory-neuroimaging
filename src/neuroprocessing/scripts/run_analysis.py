@@ -4,12 +4,11 @@ Runs analysis pipeline (preprocess and process). Callable from command line.
  """
 
 import argparse
-import datetime
 import json
 from pathlib import Path
 
 import tqdm
-from neuroprocessing.scripts.analysis import preprocess_and_process_trial
+from neuroprocessing.scripts.analysis import load_user_config, preprocess_and_process_trial
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=(
@@ -37,7 +36,9 @@ if __name__ == '__main__':
     with open(args['params_file']) as f:
         params = json.load(f)
 
-    exp_path = Path(params['local_toplvl_path']) / args['date']
+    config = load_user_config('default')
+
+    exp_path = Path(config['processed_data_dir']) / args['date']
     if not exp_path.exists():
         raise FileNotFoundError(f"Experiment date folder {exp_path} does not exist.")
 

@@ -55,11 +55,26 @@ This pipeline is designed to preprocess and analyze *in vivo* brain imaging data
     * Aggregate all imaging trials, filter them based on metadata (e.g. hindlimb stimulation only), output results
     * Sample usage in `notebooks/injection_analysis.ipynb`
 
+### Path configuration file
+* Paths to raw and processed data on the user's computer should be set in the configuration file `config/default.json` by default.
+
+Use the following template to create the configuration file:
+
+```json
+{
+    "processed_data_dir": "path/to/processed_data",
+    "raw_data_dir": "path/to/rawdata"
+}
+```
+
+This template is also located in `config/default_template.json`. Rename it to `default.json` and add the real data paths to run the scripts in this repository.
+
+
 ## Dataset
 
-The raw unprocessed experimental data are stored in an [AWS bucket](https://us-west-1.console.aws.amazon.com/s3/buckets/arcadia-neuroimaging-pruritogens). You may need to obtain permission to access it.
+The raw unprocessed experimental data are stored in a Zenodo repository [ADD LINK](). Processed data are stored in a Zenodo repository [ADD LINK]().
 
-### Required file structure
+### Experiment file structure
 
 * Raw imaging and NIDAQ sync data is stored in S3 buckets that are accessible using [S3FS](https://github.com/s3fs-fuse/s3fs-fuse). Follow instructions on S3FS to mount the S3 bucket to a local directory.
 * File structure is assumed to be `{top-level exp dir}/{exp date}/{trial dir}/{Tiff stacks and nidaq CSV files here}`
