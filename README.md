@@ -65,6 +65,8 @@ Use the following template to create the configuration file:
     "processed_data_dir": "path/to/processed_data",
     "raw_data_dir": "path/to/rawdata"
 }
+
+This template is also located in `config/default_template.json`. Rename it to `default.json` and add the real data paths to run the scripts in this repository.
 ```
 
 ## Dataset
