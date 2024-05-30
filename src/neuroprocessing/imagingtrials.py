@@ -1,6 +1,6 @@
 import json
-from pathlib import Path
 import re
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -215,48 +215,6 @@ class ImagingTrial:
             **plot_kwargs,
         )
         return montage_stack
-
-    def plot_max_projection(self, ax=None, **plot_kwargs):
-        """
-        Plots the maximum projection of the processed stack.
-        """
-        processed_stack = self._load_processed_stack()
-        max_projection = np.max(processed_stack, axis=0)
-
-        if ax is None:
-            _, ax = plt.subplots(figsize=(5, 5))
-        ax.imshow(max_projection, **plot_kwargs)
-        return ax
-
-    def get_sta_avg(self):
-        """Return stimulus-triggered average for all trials"""
-        processed_stack = self._load_processed_stack()
-
-        # assume that stim duration is stim_duration_frames / # stimulations / downsample_factor
-        # @TODO: this may not be the case for all trials in the future e.g. if stimulation epochs
-        # have different durations
-        stim_duration_frames = (
-            self.sync_info["stim_duration_frames"]
-            // self.sync_info["Number of stimulations"]
-            // self.params["downsample_factor"]
-        )
-        stim_onsets_downsampled = [
-            int(sof // self.params["downsample_factor"])
-            for sof in self.sync_info["stim_onset_frame"]
-        ]
-
-        # @TODO: this assumes that the baseline duration = stim duration, which is not true
-        stack_base = np.stack(
-            processed_stack[sof - stim_duration_frames : sof, :, :]
-            for sof in stim_onsets_downsampled[1:-1]
-        )
-        stack_stim = np.stack(
-            processed_stack[sof : sof + stim_duration_frames, :, :]
-            for sof in stim_onsets_downsampled[1:-1]
-        )
-
-        stack_diff = (stack_stim - stack_base).mean(axis=(0, 1))
-        return stack_diff
 
     def get_sta_stack(self, s_pre_stim=1, s_post_stim=5, s_baseline=0.5, roi=None):
         """
