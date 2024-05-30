@@ -13,13 +13,11 @@ from neuroprocessing.scripts.analysis import load_user_config, preprocess_and_pr
 
 @click.command()
 @click.option('--date', type=str, required=True, help='Experiment date folder to analyze.')
-@click.option('--params_file', type=str, required=True, help='Path to JSON file containing analysis parameters. See README.md for details.')
+@click.option('--params_file', type=click.Path(exists=True, file_okay=True, dir_okay=False, path_type=Path), required=True, help='Path to JSON file containing analysis parameters. See README.md for details.')
 @click.option('--trial', type=str, required=False, help='Trial folder to analyze. If not provided, all trials in the experiment folder will be analyzed.')
 @click.option('--reanalyze', is_flag=True, help='If set, reanalyze all trials, even if already processed. Processed folders have a params.json file.')
 def run_analysis(date, trial, params_file, reanalyze):
 
-    if not Path(params_file).exists():
-        raise FileNotFoundError(f"Parameters file {params_file} does not exist.")
     with open(params_file) as f:
         params = json.load(f)
 
