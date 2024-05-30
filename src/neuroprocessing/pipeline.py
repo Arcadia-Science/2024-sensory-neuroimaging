@@ -3,8 +3,6 @@ from pathlib import Path
 
 import numpy as np
 from natsort import natsorted
-from neuroprocessing.align import StackAligner
-from neuroprocessing.parse_sync_file import parse_nidaq_csv, process_nidaq_dataframe
 from scipy import ndimage
 from scipy.interpolate import CubicSpline
 from scipy.signal import find_peaks, spectrogram
@@ -12,11 +10,14 @@ from skimage import io
 from skimage.segmentation import flood
 from skimage.transform import downscale_local_mean
 
+from neuroprocessing.align import StackAligner
+from neuroprocessing.parse_sync_file import parse_nidaq_csv, process_nidaq_dataframe
+
 
 def load_user_config(config_name:str = 'default') -> dict:
     """Load user config file containing user-set paths"""
 
-    with open(Path(__file__).parents[3] / 'config' / (config_name + '.json')) as f:
+    with open(Path(__file__).parents[2] / 'config' / (config_name + '.json')) as f:
         config = json.load(f)
     return config
 

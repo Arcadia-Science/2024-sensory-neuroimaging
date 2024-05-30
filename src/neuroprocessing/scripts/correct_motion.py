@@ -1,7 +1,6 @@
 from pathlib import Path
 
 import click
-from neuroprocessing import cli_options
 from neuroprocessing.align import StackAligner
 
 max_translation_option = click.option(
