@@ -70,14 +70,13 @@ Use the following template to create the configuration file:
 This template is also located in `config/default_template.json`. Rename it to `default.json` and add the real data paths to run the scripts in this repository.
 
 
-## Dataset
+### Dataset
 
 The raw unprocessed experimental data are stored in a Zenodo repository [ADD LINK](). Processed data are stored in a Zenodo repository [ADD LINK]().
 
 ### Experiment file structure
 
-* Raw imaging and NIDAQ sync data is stored in S3 buckets that are accessible using [S3FS](https://github.com/s3fs-fuse/s3fs-fuse). Follow instructions on S3FS to mount the S3 bucket to a local directory.
-* File structure is assumed to be `{top-level exp dir}/{exp date}/{trial dir}/{Tiff stacks and nidaq CSV files here}`
+* File structure for raw and processed data is `{top-level exp dir}/{exp date}/{trial dir}/{Tiff stacks and nidaq CSV files here}`, e.g. `data-processed/2024-02-29/Zyla_5min_LHLstim_2son4soff_1pt25pctISO_2`
 * Tiff stack filenames are assumed to be in the form: `{camera}_{duration}_{stimulus_location}_{stimulus_pattern}_{notes}` where:
     * `camera` e.g. `"Zyla"` is the camera name
     * `duration` e.g. `"5min"` is the duration of the trial
@@ -85,60 +84,67 @@ The raw unprocessed experimental data are stored in a Zenodo repository [ADD LIN
     * `stimulus_pattern` e.g. `"2son4soff"` if tactile stimulation (2 seconds on, 4 seconds off) or, if injection, injection type (e.g. `saline`, `histamine`)
     * `notes` e.g. `"1pt75pctISO"`: iso concentration (but can be other notes)
 
-### How to run the pipeline
+### Processing raw imaging data
 
-1. Copy the raw folder names for the trials that you want to analyze from the top-level S3 dir to a local directory, e.g. `data/2024-03-06/`
-2. Adjust default parameters in `analysis_runs/default_analysis_params.json`. Specifically, set `s3fs_toplvl_path` to the S3FS mounted directory, and `local_toplvl_path` to the local directory
-3. Run the pipeline using the CLI `python src/neuroprocessing/scripts/run_analysis.py --date "2024-02-29"`
-4. The pipeline will output the processed data to the local directory specified in the parameters file (see [Analysis parameters](#analysis-parameters))
-5. See `notebooks/injection_analysis.ipynb` for an example of how to load and analyze the processed data
+1. Download the [raw and processed data from Zenodo](#dataset).
+2. [Update the path configuration file](#path-configuration-file) to point to the raw and processed data directories.
+3. Run the pipeline for all experiment dates:
 
-### Analysis parameters
+```bash
+python src/neuroprocessing/scripts/run_pipeline.py --date 2024-02-21 --params_file pipeline_params/default_pipeline_params.json --reanalyze
+python src/neuroprocessing/scripts/run_pipeline.py --date 2024-02-29 --params_file pipeline_params/default_pipeline_params.json --reanalyze
+python src/neuroprocessing/scripts/run_pipeline.py --date 2024-03-06 --params_file pipeline_params/default_pipeline_params.json --reanalyze
+python src/neuroprocessing/scripts/run_pipeline.py --date 2024-03-18 --params_file pipeline_params/default_pipeline_params.json --reanalyze
+python src/neuroprocessing/scripts/run_pipeline.py --date 2024-03-19 --params_file pipeline_params/default_pipeline_params.json --reanalyze
+```
 
-Analysis parameters are stored in a JSON file, e.g. `analysis_runs/default_analysis_params.json`. The file contains the following parameters:
+### Reproducing figures from the pub
+
+1. Download the [processed data from Zenodo](#dataset) or re-generate it using the steps above.
+2. Run `notebooks/generate_figures.ipynb`. Static figures will be displayed inline in the notebook. Animations of brain activity will be saved in `notebooks/figs/` as TIFF files.
+
+### Pipeline parameters
+
+Parameters for processing the raw data are stored in a JSON file in `pipeline_params`. The parameters are:
 
  * `aligner_target_num_features`: Default is 700. Number of target features for aligner (larger number is more accurate but slower).
  * `preprocess_prefix`: Default is `"aligned_downsampled_"`. Prefix used for preprocessed image files.
  * `process_prefix`: Default is `"processed_"`. Prefix used for processed image files.
- * `s3fs_toplvl_path`: Default is `"/s3/path/to/videos/"`. Set this to the mounted S3 bucket path.
- * `local_toplvl_path`: Default is` "/localpath/to/videos/"`. Set this to the local directory where the raw data is copied.
- * `load_from_s3`: Default is `true`.
- * `save_to_s3`: Default is `false`.
  * `crop_px`: Default is `20`. Number of pixels to crop from each edge of the image to eliminate edge artifacts from motion correction.
  * `bottom_percentile`: Default is `5`. Percent of pixels to subtract from every frame to correct for photobleaching.
  * `flood_connectivity`: Default is `20`. Connectivity setting for flood-filling algorithm (`skimage.segmentation.flood`) to identify brain mask.
  * `flood_tolerance`:  Default is `1000`. Tolerance setting for flood-filling algorithm (`skimage.segmentation.flood`) to identify brain mask.
 
+**Additional parameters are added within `run_pipeline.py` during runtime:**
 
-**Additional parameters are added with `run_analysis` during runtime as follows:**
-
- * `sync_csv_col` is set to `"stim"` if this is a tactile stim trial; otherwise `"button"`. `"stim"` is the channel in the sync file indicating when the vibration motor is on. `"button"` is the channel in the sync file indicating when the user pushed the button to indicate that the  injection is happening.
+ * `sync_csv_col` is set to `"stim"` if this is a tactile stimulation trial; otherwise `"button"`. `"stim"` is the channel in the sync file indicating when the vibration motor is on. `"button"` is the channel in the sync file indicating when the user pushed the button to indicate that the  injection is happening.
  * `downsample_factor` is set to `2` this is a tactile stim trial; otherwise `8`. For tactile, 2 was chosen because tactile stim on times are only ~20 frames long, so we don't want to downsample so much that we lose the stim. For injection trials, 8 was chosen bc it is approximately the breathing rate of the animal.
  * `secs_before_stim` is set to 0 if this is a tactile stim trial; otherwise `60`. For tactile, process the whole recording. For injections, process starting at 60 s (1 min) before injection to avoid artifacts.
 
-`run_analysis` determines whether the current trial is a tactile stim trial or an injection trial based on the trial name. Tactile stimulation trials are typically 5 mins long and have `"_5min_"` in the trial name. Injection trials are typically 15 or 30 mins long.
+Whether the current trial is a tactile stim trial or an injection trial is determined within `run_pipeline.py` based on the trial name. Tactile stimulation trials are typically 5 mins long and have `"_5min_"` in the trial name. Injection trials are typically 15 or 30 mins long.
 
 ## Scripts
 
-To display a help message for any script:
+To display a help message for the scripts:
 
 ```bash
 python src/neuroprocessing/scripts/{script.py} --help
 ```
 
-### Overall pipeline
+### Image processing pipeline
 
-To analyze imaging data, see `src/neuroprocessing/scripts/run_analysis.py`. The script includes steps for preprocessing (downsample, motion correction) and processing (segmentation, bleach correction). For example, to analyze all experiments from a single day, run:
+To process raw imaging data, use `src/neuroprocessing/scripts/run_pipeline.py`. The script includes steps for preprocessing (downsampling, motion correction) and processing (segmentation, bleach correction). For example, to analyze all experiments from a single day, run:
 
 ```bash
-conda activate neuro
-python src/neuroprocessing/scripts/run_analysis.py --date "2024-02-21" --params_file "path/to/file.json"
+python src/neuroprocessing/scripts/run_pipeline.py --date "2024-02-21" --params_file params_file pipeline_params/default_pipeline_params.json
 ```
 
 To analyze a single trial in a day, run:
 ```bash
-python src/neuroprocessing/scripts/run_analysis.py --date "2024-02-21" --trial "Zyla_5min_LFLstim_2son4soff_1pt25pctISO_deeper_1" --params_file "path/to/file.json"
+python src/neuroprocessing/scripts/run_pipeline.py --date "2024-02-21" --trial "Zyla_5min_LFLstim_2son4soff_1pt25pctISO_deeper_1" --params_file params_file pipeline_params/default_pipeline_params.json
 ```
+
+For additional functionality, see `src/neuroprocessing/scripts/run_pipeline.py --help`
 
 During analysis you may see the following warning: `<tifffile.TiffFile 'Zyla_30min_RHL_…ack_Pos0.ome.tif'> ImageJ series metadata invalid or corrupted file`. This warning is expected because we are not using the OME metadata in TIFF files. It can be ignored. You will also see warnings like `UserWarning: {filename} is a low contrast image`. This is also expected and can be ignored.
 
