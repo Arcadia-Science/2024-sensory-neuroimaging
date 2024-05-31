@@ -19,7 +19,7 @@ axes.grid.which:    major   # grid lines at {major, minor, both} ticks
 axes.prop_cycle: cycler('color', ['5088C5', 'F28360', 'F7B846', '97CD78', '7A77AB', 'F898AE', '3B9886', 'C85152', '73B5E3', 'BAB0A8', '8A99AD', 'FFB984', 'C6E7F4', 'F8C5C1', 'F5E4BE', 'B5BEA4', 'DCBFFC', 'B6C8D4', 'DAD3C7', 'DA9085', 'F5CBE4', 'D1EADF', 'BABEE0', 'F1E8DA'])
 
 axes.labelsize:     24  # font size of the x and y labels
-axes.labelpad:      2.0     # space between label and axis
+axes.labelpad:      15.0     # space between label and axis
 axes.labelcolor:    k
 
 axes.spines.bottom  : True
