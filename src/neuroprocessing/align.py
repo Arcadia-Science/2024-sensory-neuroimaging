@@ -12,9 +12,24 @@ class StackAligner:
     """Align timelapse imaging data using linear transformations derived from
     SIFT + RANSAC.
 
-    TODO: describe problem...
-    TODO: describe approach...
-    TODO: briefly describe what SIFT and RANSAC do and why they are used here
+    This is essentially a Python implementation of the Fiji plugin `Linear Stack
+    Alignment with SIFT` [1]. The central idea is that there is bound to be some
+    lateral drift between sequential frames in timelapse microscopy data. This
+    class contains functionality for correcting for this drift by aligning
+    sequential frames of image data with linear transformations (at the moment
+    only translation + rotation are accounted for).
+
+    The appropriate linear transformation is computed by applying a combination
+    of the algorithms SIFT [2, 3] and RANSAC [4]. This is a common approach in
+    computer vision. Briefly, SIFT (scale invariant feature transform) extracts
+    and describes keypoints in a reference image that are robust to changes in
+    scale, rotation, and translation such that it is likely to extract and
+    describe many of the same keypoints in a test image containing the same
+    objects but where the perspective may have changed. RANSAC (random sample
+    consensus) performs geometric matching of the keypoints returned by SIFT to
+    calculate the optimal linear transformation that describes this change in
+    perspective. Note that the alignment can be computationally expensive
+    particularly for large timelapses.
 
     Parameters
     ----------
@@ -31,18 +46,46 @@ class StackAligner:
     target_num_features : int
         Target number of features for SIFT parameter optimization.
     SIFT_parameters : dict (optional)
-        Parameters for SIFT (Scale Invariant Feature Transform) [1].
+        Parameters for SIFT (Scale Invariant Feature Transform) [5].
     RANSAC_parameters : dict (optional)
-        Parameters for RANSAC (RANdom SAmple Consensus) [2].
+        Parameters for RANSAC (RANdom SAmple Consensus) [6].
 
-    Methods
-    -------
-    align()
+    Examples
+    --------
+    Align timelapse microscopy data stored as a multipage TIFF file.
+    >>> aligner = StackAligner(filepath="/path/to/timelapse.tiff")
+    >>> aligner.align(max_translation=50)
+    >>> aligner.stack_aligned
+    array([[[5534, 5481, 5587, ..., 7950, 7813, 7937],
+            [5605, 5436, 5553, ..., 8081, 7756, 7854],
+            [5711, 5630, 5497, ..., 7924, 7780, 7787],
+            ...,
+            [8438, 8543, 8704, ..., 7327, 7072, 6984],
+            [8303, 8297, 8462, ..., 7389, 7375, 7007],
+            [8293, 8176, 8601, ..., 7186, 7227, 6922]]], dtype=uint16)
+
+    Align an image stack already loaded as a numpy array with dimensions [T, Y, X].
+    >>> import skimage as ski
+    >>> stack = ski.io.imread("/path/to/timelapse.tiff")
+    >>> aligner = StackAligner(stack=stack)
+    >>> aligner.align(max_translation=50)
+    >>> aligner.stack_aligned
+    array([[[5534, 5481, 5587, ..., 7950, 7813, 7937],
+            [5605, 5436, 5553, ..., 8081, 7756, 7854],
+            [5711, 5630, 5497, ..., 7924, 7780, 7787],
+            ...,
+            [8438, 8543, 8704, ..., 7327, 7072, 6984],
+            [8303, 8297, 8462, ..., 7389, 7375, 7007],
+            [8293, 8176, 8601, ..., 7186, 7227, 6922]]], dtype=uint16)
 
     References
     ----------
-    [1] https://scikit-image.org/docs/stable/api/skimage.feature.html#skimage.feature.SIFT
-    [2] https://scikit-image.org/docs/stable/api/skimage.measure.html#skimage.measure.ransac
+    [1] https://imagej.net/plugins/linear-stack-alignment-with-sift
+    [2] https://doi.org/10.1023/b:visi.0000029664.99615.94
+    [3] https://en.wikipedia.org/wiki/Scale-invariant_feature_transform
+    [4] https://en.wikipedia.org/wiki/Random_sample_consensus
+    [5] https://scikit-image.org/docs/stable/api/skimage.feature.html#skimage.feature.SIFT
+    [6] https://scikit-image.org/docs/stable/api/skimage.measure.html#skimage.measure.ransac
     """
 
     def __init__(
@@ -107,7 +150,6 @@ class StackAligner:
         self.RANSAC_parameters = {**priors_RANSAC, **RANSAC_parameters}
 
         # only allow EuclideanTransform (translation + rotation)
-        # TODO: allow other types of transformations?
         model = self.RANSAC_parameters["model_class"]
         if model != ski.transform.EuclideanTransform:
             msg = f"Only `EuclideanTransform` is supported, but {model} was given."
