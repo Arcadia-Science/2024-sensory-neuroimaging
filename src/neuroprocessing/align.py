@@ -53,7 +53,7 @@ class StackAligner:
     Examples
     --------
     Align timelapse microscopy data stored as a multipage TIFF file.
-    >>> aligner = StackAligner("/path/to/timelapse.tiff")
+    >>> aligner = StackAligner(filepath="/path/to/timelapse.tiff")
     >>> aligner.align(max_translation=50)
     >>> aligner.stack_aligned
     array([[[5534, 5481, 5587, ..., 7950, 7813, 7937],
