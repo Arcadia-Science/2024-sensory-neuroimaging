@@ -20,7 +20,7 @@ class StackAligner:
     only translation + rotation are accounted for).
 
     The appropriate linear transformation is computed by applying a combination
-    of the algorithms SIFT [2, 3] and RANSAC [4] a not uncommon approach in
+    of the algorithms SIFT [2, 3] and RANSAC [4]. This is a common approach in
     computer vision. Briefly, SIFT (scale invariant feature transform) extracts
     and describes keypoints in a reference image that are robust to changes in
     scale, rotation, and translation such that it is likely to extract and
