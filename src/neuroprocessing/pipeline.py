@@ -97,6 +97,11 @@ def _identify_trial_save_paths(exp_dir: str, trial_dir: str, params: dict) -> tu
 
     trial_path = Path(config['raw_data_dir']) / exp_dir / trial_dir
     save_path = Path(config['processed_data_dir']) / exp_dir / trial_dir
+
+    # create directory to store output if it does not already exist
+    if not save_path.exists():
+        save_path.mkdir(parents=True, exist_ok=False)
+
     return (trial_path, save_path)
 
 
