@@ -26,7 +26,7 @@ class StackAligner:
     scale, rotation, and translation such that it is likely to extract and
     describe many of the same keypoints in a test image containing the same
     objects but where the perspective may have changed. RANSAC (random sample
-    conensus) performs geometric matching of the keypoints returned by SIFT to
+    consensus) performs geometric matching of the keypoints returned by SIFT to
     calculate the optimal linear transformation that describes this change in
     perspective. Note that the alignment can be computationally expensive
     particularly for large timelapses.
