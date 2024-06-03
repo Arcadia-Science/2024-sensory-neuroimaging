@@ -14,15 +14,17 @@ from neuroprocessing.align import StackAligner
 from neuroprocessing.parse_sync_file import parse_nidaq_csv, process_nidaq_dataframe
 
 
-def load_user_config(config_name:str = 'default') -> dict:
+def load_user_config(config_name: str = "default") -> dict:
     """Load user config file containing user-set paths"""
 
-    with open(Path(__file__).parents[2] / 'config' / (config_name + '.json')) as f:
+    with open(Path(__file__).parents[2] / "config" / (config_name + ".json")) as f:
         config = json.load(f)
     return config
 
-def compute_breathing_rate(signal: np.array, fs:float) -> np.array:
-    """Compute breathing rate from signal using spectrogram. Not currently being used in the pipeline.
+
+def compute_breathing_rate(signal: np.array, fs: float) -> np.array:
+    """Compute breathing rate from signal using spectrogram.
+    Not currently being used in the pipeline.
 
     Example usage:
     ```python
@@ -93,10 +95,15 @@ def _identify_trial_save_paths(exp_dir: str, trial_dir: str, params: dict) -> tu
         tuple
             (Path to the raw tiff stack, Path to the processed tiff stack)
     """
-    config = load_user_config('default')
+    config = load_user_config("default")
 
-    trial_path = Path(config['raw_data_dir']) / exp_dir / trial_dir
-    save_path = Path(config['processed_data_dir']) / exp_dir / trial_dir
+    trial_path = Path(config["raw_data_dir"]) / exp_dir / trial_dir
+    save_path = Path(config["processed_data_dir"]) / exp_dir / trial_dir
+
+    # create directory to store output if it does not already exist
+    if not save_path.exists():
+        save_path.mkdir(parents=True, exist_ok=False)
+
     return (trial_path, save_path)
 
 
@@ -123,7 +130,7 @@ def _get_sync_info(sync_csv_path, stimulus_column_name="button"):
     df_frames.set_index("frame", inplace=True)
 
     stim_onset_frame = np.where(
-        (df_frames["stimulated"] == True) & (df_frames["stimulated"].shift(1) == False)
+        (df_frames["stimulated"]) & (~df_frames["stimulated"].shift(1).astype(bool))
     )[0].tolist()  # noqa: E712, E501
 
     n_stims = len(stim_onset_frame)
@@ -144,7 +151,7 @@ def _get_sync_info(sync_csv_path, stimulus_column_name="button"):
     print(f"Stimulus duration (overall) (frames): {stim_duration_frames}")
     print(f"Stimulus duration (overall) (s): {stim_duration_frames/framerate_hz}")
     print(f"Frame duration (ms): {frame_time_s*1000}")
-    print("Framerate (Hz): %.2f" % (framerate_hz))
+    print(f"Framerate (Hz): {framerate_hz:.2f}")
 
     return sync_info
 
