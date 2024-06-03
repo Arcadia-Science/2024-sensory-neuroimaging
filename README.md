@@ -159,6 +159,7 @@ To help minimize the computational expense of motion correction, there is a buil
 python src/neuroprocessing/scripts/correct_motion.py \
     --filename /path/to/timelapse.ome.tif \
     --target-num-features 200
+```
 Alternatively, it can be set as a parameter (`aligner_target_num_features`) in `pipeline_params/default_pipeline_params.json` when running batch processing.
 
 ## Contributing
