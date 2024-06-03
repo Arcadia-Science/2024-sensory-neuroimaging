@@ -156,8 +156,9 @@ python src/neuroprocessing/scripts/correct_motion.py --filename {/path/to/timela
 
 To better cater to the computational expense of motion correction, there is a built-in optimization routine for auto-adjusting the SIFT + RANSAC parameters to arrive at a target number of features. A higher number of target features should result in a more accurate alignment at the expense of time and processing power. By default the target number of features is set to 150, which was found to be a satisfactory balance between accuracy and computation time for our data and computational resources. The target number of features can be adjusted when running motion correction from the command line via
 ```bash
-python src/neuroprocessing/scripts/correct_motion.py --filename {/path/to/timelapse.ome.tif} --target-num-features 200
-```
+python src/neuroprocessing/scripts/correct_motion.py \
+    --filename /path/to/timelapse.ome.tif \
+    --target-num-features 200
 Alternatively, it can be set as a parameter (`aligner_target_num_features`) in `pipeline_params/default_pipeline_params.json` when running batch processing.
 
 ## Contributing
