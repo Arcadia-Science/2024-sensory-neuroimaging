@@ -105,6 +105,7 @@ dependencies:
   - pyzmq=26.0.3
   - rav1e=0.6.6
   - readline=8.2
+  - ruff=0.4.8
   - scikit-image=0.22.0
   - scipy=1.12.0
   - setuptools=70.0.0
