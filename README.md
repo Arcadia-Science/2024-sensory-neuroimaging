@@ -6,7 +6,7 @@
 
 ## Overview
 
-This repo contains microscope control software, data analysis scripts, and notebooks for the translation pilot "Brain imaging of pruritogen responses". This includes all the code necessary to reproduce figures and results from the pub.
+This repo contains microscope control software, data analysis scripts, and notebooks for the translation pilot ["Brain imaging of pruritogen responses"](ADD LINK). This includes all the code necessary to reproduce the figures and results from the pub.
 
 ## Installation and Setup
 
@@ -17,7 +17,7 @@ conda create -y --name neuroimaging-analysis --file envs/all-dependencies.yml
 conda activate neuroimaging-analysis
 ```
 
-If you run into problems solving this environment, try installing only the direct dependencies:
+If conda cannot solve this environment, try installing only the direct dependencies:
 
 ```bash
 conda env update -y --name neuroimaging-analysis --file envs/direct-dependencies.yml
@@ -31,7 +31,7 @@ pip install -e .
 
 ## Microscope control code
 
-The Arduino firmware code to control the LED and the tactile stimulator is in `microscope/arduino/`. This code should be loaded onto the Teensy microcontroller using the Arduino IDE (version 2.3.2, [download here](https://www.arduino.cc/en/software)). ([Teensy 4.0](https://www.pjrc.com/store/teensy40.html) was used for this project). User should make sure that the pin assignments within the code correspond to the physical circuit (see [Couto et al 2021](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC8788140/)) as a starting point.
+The Arduino firmware code to control the LED and the tactile stimulator is in `microscope/arduino/`. This code should be loaded onto the Teensy microcontroller using the Arduino IDE (version 2.3.2; [download here](https://www.arduino.cc/en/software)). ([Teensy 4.0](https://www.pjrc.com/store/teensy40.html) was used for this project). User should make sure that the pin assignments within the code correspond to the physical circuit (see [Couto et al 2021](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC8788140/)) as a starting point.
 
 The Python script to control the microcontroller is `microscope/python/launch_stim.py`. This script should be run on the computer that controls the microscope hardware.
 
@@ -48,15 +48,15 @@ Run the script using the command line to initiate the LED and the stimulator (if
 
 This pipeline is designed to preprocess and analyze *in vivo* brain imaging data collected with a widefield microscope. Included in the pipeline are the following steps:
 
-* Preprocessing in the `preprocess_trial` function in `src/neuroprocessing/pipeline.py`
+* Preprocessing (in the `preprocess_trial` function in `src/neuroprocessing/pipeline.py`)
     * Load TIFF stack of raw imaging data, concatenate stacks if needed
     * Load NIDAQ sync file to align imaging data with stimulus
     * Downsample stack in time
     * Correct for motion artifacts (see [Motion correction](#motion-correction) below)
-* Processing in the `process_trial` function in `src/neuroprocessing/pipeline.py`
+* Processing (in the `process_trial` function in `src/neuroprocessing/pipeline.py`)
     * Automatically mask out the brain
     * Correct for photobleaching
-* Analysis and visualization in the `ImagingTrialLoader` class in `src/neuroprocessing/imagingtrials.py`
+* Analysis and visualization (in the `ImagingTrialLoader` class in `src/neuroprocessing/imagingtrials.py`)
     * Aggregate all imaging trials
     * Filters imaging trails based on metadata (e.g. hindlimb stimulation only)
   
@@ -179,7 +179,7 @@ python src/neuroprocessing/scripts/correct_motion.py \
     --filename /path/to/timelapse.ome.tif \
     --target-num-features 200
 ```
-Alternatively, it can be set as a parameter (`aligner_target_num_features`) in `pipeline_params/default_pipeline_params.json` when running batch processing.
+Alternatively, it can be set using the parameter `aligner_target_num_features` in `pipeline_params/default_pipeline_params.json` when running batch processing.
 
 ## Contributing
 
