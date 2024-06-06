@@ -1,64 +1,69 @@
 ![sample_montage](https://github.com/Arcadia-Science/2024-neuroimaging-pruritogens/assets/4419151/8f50e257-c0b4-449f-b7d3-684038b42816)
 
-
 # 2024-neuroimaging-pruritogens
 
 [![run with conda](http://img.shields.io/badge/run%20with-conda-3EB049?labelColor=000000&logo=anaconda)](https://docs.conda.io/projects/miniconda/en/latest/)
 
-
-
 ## Overview
-This repo contains microscope control software, data analysis scripts, and notebooks for the translation pilot "Brain imaging of pruritogen responses". This includes all the code necessary to reproduce figures and results from the pub.
+
+This repo contains microscope control software, data analysis scripts, and notebooks for the translation pilot ["Brain imaging of pruritogen responses"](ADD LINK). This includes all the code necessary to reproduce the figures and results from the pub.
 
 ## Installation and Setup
 
 This repository uses conda to manage software environments and installations.
 
-```{bash}
-conda create -n neuro --file envs/dev.yml
-conda activate neuro
+```bash
+conda create -y --name neuroimaging-analysis --file envs/all-dependencies.yml
+conda activate neuroimaging-analysis
 ```
 
-To install the package in development mode, run:
+If conda cannot solve this environment, try installing only the direct dependencies:
 
-```{bash}
+```bash
+conda env update -y --name neuroimaging-analysis --file envs/direct-dependencies.yml
+```
+
+To install the `neuroimaging` package in development mode, run:
+
+```bash
 pip install -e .
-```
-
-To create the microscope environment on the computer that will control the microscope, run:
-
-```{bash}
-conda create -n env-microscope --file microscope/Python/env-microscope.yml
 ```
 
 ## Microscope control code
 
-The Arduino firmware code to control the LED and the tactile stimulator is in `microscope/Arduino/LED_stimulator_control`. This code should be loaded onto the Teensy microcontroller using the Arduino IDE (version 2.3.2, [download here](https://www.arduino.cc/en/software)). ([Teensy 4.0](https://www.pjrc.com/store/teensy40.html) was used for this project). User should make sure that the pin assignments within the code correspond to the physical circuit (see [Couto et al 2021](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC8788140/)) as a starting point.
+The Arduino firmware code to control the LED and the tactile stimulator is in `microscope/arduino/`. This code should be loaded onto the Teensy microcontroller using the Arduino IDE (version 2.3.2; [download here](https://www.arduino.cc/en/software)). ([Teensy 4.0](https://www.pjrc.com/store/teensy40.html) was used for this project). User should make sure that the pin assignments within the code correspond to the physical circuit (see [Couto et al 2021](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC8788140/)) as a starting point.
 
-The Python code to control the microcontroller is `microscope/Python/launch_stim.py`. This should be run on the computer that controls the microscope hardware. To use, first activate the microscope's conda environment (`conda activate env-microscope`). 
+The Python script to control the microcontroller is `microscope/python/launch_stim.py`. This script should be run on the computer that controls the microscope hardware.
 
-Launch this code using the command-line to initiate the LED and the stimulator (if needed). Example usage cases are shown in the file.
+This script requires its own conda environment:
+```bash
+conda create --name neuroimaging-microscope --file envs/microscope-control.yml
+conda activate neuroimaging-microscope
+```
+This environment should be created on the computer that will control the microscope.
+
+Run the script using the command line to initiate the LED and the stimulator (if needed). Example use cases are shown in the file.
 
 ## Neuroimaging analysis pipeline
 
 This pipeline is designed to preprocess and analyze *in vivo* brain imaging data collected with a widefield microscope. Included in the pipeline are the following steps:
 
-* Preprocessing (`preprocess_trial` in `src/neuroprocessing/scripts/analysis.py`)
+* Preprocessing (in the `preprocess_trial` function in `src/neuroprocessing/pipeline.py`)
     * Load TIFF stack of raw imaging data, concatenate stacks if needed
     * Load NIDAQ sync file to align imaging data with stimulus
     * Downsample stack in time
-    * Correct for motion artifacts (see [Motion correction](#motion-correction))
-* Processing (`process_trial` in `src/neuroprocessing/scripts/analysis.py`)
+    * Correct for motion artifacts (see [Motion correction](#motion-correction) below)
+* Processing (in the `process_trial` function in `src/neuroprocessing/pipeline.py`)
     * Automatically mask out the brain
     * Correct for photobleaching
-* Analysis and visualization (`ImagingTrialLoader` in `src/neuroprocessing/imagingtrials.py`)
-    * Aggregate all imaging trials, filter them based on metadata (e.g. hindlimb stimulation only), output results
-    * Sample usage in `notebooks/injection_analysis.ipynb`
+* Analysis and visualization (in the `ImagingTrialLoader` class in `src/neuroprocessing/imagingtrials.py`)
+    * Aggregate all imaging trials
+    * Filters imaging trails based on metadata (e.g. hindlimb stimulation only)
+  
 
 ### Path configuration file
-* Paths to raw and processed data on the user's computer should be set in the configuration file `config/default.json` by default.
 
-Use the following template to create the configuration file:
+Paths to raw and processed data on the user's computer should be set in the configuration file `config/default.json` by default. Use the following template to create the configuration file:
 
 ```json
 {
@@ -86,9 +91,9 @@ The raw unprocessed experimental data are stored in a Zenodo repository [ADD LIN
 
 ### Processing raw imaging data
 
-1. Download the [raw and processed data from Zenodo](#dataset).
+1. Download the [raw data from Zenodo](#dataset).
 2. [Update the path configuration file](#path-configuration-file) to point to the raw and processed data directories.
-3. Run the pipeline for all experiment dates:
+3. Run the pipeline for all experiment dates (**note: this may take >5 hours if running locally**):
 
 ```bash
 python src/neuroprocessing/scripts/run_pipeline.py --date 2024-02-21 --params_file pipeline_params/default_pipeline_params.json --reanalyze
@@ -136,29 +141,55 @@ python src/neuroprocessing/scripts/{script.py} --help
 To process raw imaging data, use `src/neuroprocessing/scripts/run_pipeline.py`. The script includes steps for preprocessing (downsampling, motion correction) and processing (segmentation, bleach correction). For example, to analyze all experiments from a single day, run:
 
 ```bash
-python src/neuroprocessing/scripts/run_pipeline.py --date "2024-02-21" --params_file params_file pipeline_params/default_pipeline_params.json
+conda activate neuroimaging
+python src/neuroprocessing/scripts/run_analysis.py \
+    --date 2024-02-21 \
+    --params_file pipeline_params/default_pipeline_params.json
 ```
 
 To analyze a single trial in a day, run:
 ```bash
-python src/neuroprocessing/scripts/run_pipeline.py --date "2024-02-21" --trial "Zyla_5min_LFLstim_2son4soff_1pt25pctISO_deeper_1" --params_file params_file pipeline_params/default_pipeline_params.json
+python src/neuroprocessing/scripts/run_analysis.py \
+    --date 2024-02-21 \
+    --params_file pipeline_params/default_pipeline_params.json \
+    --trial Zyla_5min_LFLstim_2son4soff_1pt25pctISO_deeper_1
 ```
 
 For additional functionality, see `src/neuroprocessing/scripts/run_pipeline.py --help`
 
-During analysis you may see the following warning: `<tifffile.TiffFile 'Zyla_30min_RHL_…ack_Pos0.ome.tif'> ImageJ series metadata invalid or corrupted file`. This warning is expected because we are not using the OME metadata in TIFF files. It can be ignored. You will also see warnings like `UserWarning: {filename} is a low contrast image`. This is also expected and can be ignored.
+For additional functionality, see `src/neuroprocessing/scripts/run_pipeline.py --help`
+
+During analysis you may see the following warning: 
+
+```
+<tifffile.TiffFile '...'> ImageJ series metadata invalid or corrupted file
+``` 
+
+This warning is expected because we are not using the OME metadata in TIFF files. It can be ignored. You will also see warnings like `UserWarning: {filename} is a low contrast image`. This is also expected and can be ignored.
 
 ### Motion correction
 
 To apply motion correction to a timelapse:
+
 ```bash
-python src/neuroprocessing/scripts/correct_motion.py --filename {/path/to/timelapse.ome.tif}
+python src/neuroprocessing/scripts/correct_motion.py \
+    --filename /path/to/timelapse.ome.tif
 ```
 
 Note that this script is somewhat computationally expensive and runs on 8 processors by default. Multiprocessing can be turned off by setting the number of workers argument to 1.
 ```bash
-python src/neuroprocessing/scripts/correct_motion.py --filename {/path/to/timelapse.ome.tif} --num-workers 1
+python src/neuroprocessing/scripts/correct_motion.py \
+    --filename /path/to/timelapse.ome.tif \
+    --num-workers 1
 ```
+
+To help minimize the computational expense of motion correction, there is a built-in optimization routine for auto-adjusting the SIFT + RANSAC parameters to arrive at a target number of features. A higher number of target features should result in a more accurate alignment at the expense of time and processing power. By default the target number of features is set to 150, which was found to be a satisfactory balance between accuracy and computation time for our data and computational resources. The target number of features can be adjusted when running motion correction from the command line via
+```bash
+python src/neuroprocessing/scripts/correct_motion.py \
+    --filename /path/to/timelapse.ome.tif \
+    --target-num-features 200
+```
+Alternatively, it can be set using the parameter `aligner_target_num_features` in `pipeline_params/default_pipeline_params.json` when running batch processing.
 
 ## Contributing
 

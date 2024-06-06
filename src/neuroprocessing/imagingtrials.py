@@ -77,7 +77,12 @@ class ImagingTrial:
         """
         Loads the processed stack
         """
-        processed_stack_path = self.base_path / self.exp_dir / self.trial_dir / (self.params["process_prefix"] + self.trial_dir + ".tif")
+        processed_stack_path = (
+            self.base_path
+            / self.exp_dir
+            / self.trial_dir
+            / (self.params["process_prefix"] + self.trial_dir + ".tif")
+        )
         processed_stack = io.imread(processed_stack_path)
         return processed_stack
 
@@ -149,7 +154,12 @@ class ImagingTrial:
         """
         Loads the "mask.npy" file for the trial.
         """
-        mask_path = self.base_path / self.exp_dir / self.trial_dir / ("mask_" + self.params["process_prefix"] + self.trial_dir + ".npy")
+        mask_path = (
+            self.base_path
+            / self.exp_dir
+            / self.trial_dir
+            / ("mask_" + self.params["process_prefix"] + self.trial_dir + ".npy")
+        )
 
         mask = np.load(mask_path)
         return mask
@@ -333,18 +343,14 @@ class ImagingTrialsLoader:
         trials = []
 
         # List directories at the first level (exps)
-        exp_dirs = [
-            d for d in self.base_path.iterdir() if d.is_dir()
-        ]
+        exp_dirs = [d for d in self.base_path.iterdir() if d.is_dir()]
 
         for exp in exp_dirs:
             # Path to the date directory
             exp_dir_path = self.base_path / exp
 
             # List directories at the second level (trials)
-            trial_dirs = [
-                d for d in exp_dir_path.iterdir() if d.is_dir()
-            ]
+            trial_dirs = [d for d in exp_dir_path.iterdir() if d.is_dir()]
 
             # Append date and exp information
             for trial in trial_dirs:
