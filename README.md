@@ -13,14 +13,14 @@ This repo contains microscope control software, data analysis scripts, and noteb
 This repository uses conda to manage software environments and installations.
 
 ```bash
-conda create -y --name neuroimaging-analysis --file envs/all-dependencies.yml
+conda env create -y --name neuroimaging-analysis --file envs/all-dependencies.yml
 conda activate neuroimaging-analysis
 ```
 
 If conda cannot solve this environment, try installing only the direct dependencies:
 
 ```bash
-conda env update -y --name neuroimaging-analysis --file envs/direct-dependencies.yml
+conda env create -y --name neuroimaging-analysis --file envs/direct-dependencies.yml
 ```
 
 To install the `neuroimaging` package in development mode, run:
@@ -37,7 +37,7 @@ The Python script to control the microcontroller is `microscope/python/launch_st
 
 This script requires its own conda environment:
 ```bash
-conda create --name neuroimaging-microscope --file envs/microscope-control.yml
+conda env create --name neuroimaging-microscope --file envs/microscope-control.yml
 conda activate neuroimaging-microscope
 ```
 This environment should be created on the computer that will control the microscope.
