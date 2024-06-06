@@ -1,10 +1,10 @@
 .PHONY: lint
 lint:
-	ruff --exit-zero check .
+	ruff check .
 
 .PHONY: format
 format:
-	ruff --fix .
+	ruff check --fix .
 	ruff format .
 
 .PHONY: pre-commit
