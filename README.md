@@ -96,17 +96,21 @@ The raw unprocessed experimental data are stored in a Zenodo repository [ADD LIN
 3. Run the pipeline for all experiment dates (**note: this may take >5 hours if running locally**):
 
 ```bash
-python src/neuroprocessing/scripts/run_pipeline.py --date 2024-02-21 --params_file pipeline_params/default_pipeline_params.json --reanalyze
-python src/neuroprocessing/scripts/run_pipeline.py --date 2024-02-29 --params_file pipeline_params/default_pipeline_params.json --reanalyze
-python src/neuroprocessing/scripts/run_pipeline.py --date 2024-03-06 --params_file pipeline_params/default_pipeline_params.json --reanalyze
-python src/neuroprocessing/scripts/run_pipeline.py --date 2024-03-18 --params_file pipeline_params/default_pipeline_params.json --reanalyze
-python src/neuroprocessing/scripts/run_pipeline.py --date 2024-03-19 --params_file pipeline_params/default_pipeline_params.json --reanalyze
+
+conda activate neuroimaging
+for date in 2024-02-21 2024-02-29 2024-03-06 2024-03-18 2024-03-19; do
+    python src/neuroprocessing/scripts/run_pipeline.py \
+        --date $date \
+        --params_file pipeline_params/default_pipeline_params.json \
+        --reanalyze
+done
+
 ```
 
 ### Reproducing figures from the pub
 
 1. Download the [processed data from Zenodo](#dataset) or re-generate it using the steps above.
-2. Run `notebooks/generate_figures.ipynb`. Static figures will be displayed inline in the notebook. Animations of brain activity will be saved in `notebooks/figs/` as TIFF files.
+2. Run `notebooks/generate_figures.ipynb`. Static figures will be displayed inline in the notebook. Animations of brain activity will be saved in `notebooks/figs/` as TIFFs.
 
 ### Pipeline parameters
 
