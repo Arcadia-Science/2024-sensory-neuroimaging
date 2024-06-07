@@ -1,6 +1,6 @@
 ![sample_montage](https://github.com/Arcadia-Science/2024-neuroimaging-pruritogens/assets/4419151/8f50e257-c0b4-449f-b7d3-684038b42816)
 
-# 2024-neuroimaging-pruritogens
+# 2024-sensory-neuroimaging
 
 [![run with conda](http://img.shields.io/badge/run%20with-conda-3EB049?labelColor=000000&logo=anaconda)](https://docs.conda.io/projects/miniconda/en/latest/)
 
@@ -158,8 +158,6 @@ python src/neuroprocessing/scripts/run_analysis.py \
     --params_file pipeline_params/default_pipeline_params.json \
     --trial Zyla_5min_LFLstim_2son4soff_1pt25pctISO_deeper_1
 ```
-
-For additional functionality, see `src/neuroprocessing/scripts/run_pipeline.py --help`
 
 For additional functionality, see `src/neuroprocessing/scripts/run_pipeline.py --help`
 
