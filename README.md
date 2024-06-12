@@ -6,7 +6,7 @@
 
 ## Overview
 
-This repo contains microscope control software, data analysis scripts, and notebooks for the translation pilot ["Brain imaging of pruritogen responses"](ADD LINK). This includes all the code necessary to reproduce the figures and results from the pub.
+This repo contains microscope control software, data analysis scripts, and notebooks for the translation pilot ["Brain imaging of pruritogen responses"](https://doi.org/10.57844/arcadia-b963-15ac). This repository includes all the code necessary to reproduce the figures and results from the pub.
 
 ## Installation and Setup
 
@@ -77,7 +77,7 @@ This template is also located in `config/default_template.json`. Rename it to `d
 
 ### Dataset
 
-The raw unprocessed experimental data are stored in a Zenodo repository [ADD LINK](). Processed data are stored in a Zenodo repository [ADD LINK]().
+The raw and processed experimental data are stored in a [Zenodo repository](https://doi.org/10.5281/zenodo.11585535).
 
 ### Experiment file structure
 
@@ -91,9 +91,11 @@ The raw unprocessed experimental data are stored in a Zenodo repository [ADD LIN
 
 ### Processing raw imaging data
 
-1. Download the [raw data from Zenodo](#dataset).
-2. [Update the path configuration file](#path-configuration-file) to point to the raw and processed data directories.
-3. Run the pipeline for all experiment dates (**note: this may take >5 hours if running locally**):
+1. Download the [dataset from Zenodo](#dataset). Note: the dataset is large (~80 Gb).
+2. Unzip the raw data file `pub-data-processed.zip` to a directory on your computer.
+3. Create a new empty directory for the processed data.
+4. [Update the path configuration file](#path-configuration-file) to point to the raw and processed data directories.
+5. Run the pipeline for all experiment dates (**note: this may take >5 hours if running locally**):
 
 ```bash
 
@@ -109,8 +111,9 @@ done
 
 ### Reproducing figures from the pub
 
-1. Download the [processed data from Zenodo](#dataset) or re-generate it using the steps above.
-2. Run `notebooks/generate_figures.ipynb`. Static figures will be displayed inline in the notebook. Animations of brain activity will be saved in `notebooks/figs/` as TIFFs.
+1. Download the [dataset from Zenodo](#dataset) or re-generate it using the steps above. If downloaded, unzip the processed data file `pub-data-processed.zip` to a directory on your computer.
+2. [Update the path configuration file](#path-configuration-file) to point to the processed data directory.
+3. Run `notebooks/generate_figures.ipynb`. Static figures will be displayed inline in the notebook. Animations of brain activity will be saved in `notebooks/figs/` as TIFFs.
 
 ### Pipeline parameters
 
