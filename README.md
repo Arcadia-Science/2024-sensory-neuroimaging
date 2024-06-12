@@ -135,14 +135,6 @@ Parameters for processing the raw data are stored in a JSON file in `pipeline_pa
 
 Whether the current trial is a tactile stim trial or an injection trial is determined within `run_pipeline.py` based on the trial name. Tactile stimulation trials are typically 5 minutes long and have `"_5min_"` in the trial name. Injection trials are typically 15 or 30 minutes long.
 
-## Scripts
-
-To display a help message for the scripts:
-
-```bash
-python src/neuroprocessing/scripts/{script.py} --help
-```
-
 ### Image processing pipeline
 
 To process raw imaging data, use `src/neuroprocessing/scripts/run_pipeline.py`. The script includes steps for preprocessing (downsampling and motion correction) and processing (segmentation and bleach correction). For example, to analyze all experiments from a single day, run:
