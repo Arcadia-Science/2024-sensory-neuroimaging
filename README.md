@@ -127,13 +127,13 @@ Parameters for processing the raw data are stored in a JSON file in `pipeline_pa
  * `flood_connectivity`: Default is `20`. Connectivity setting for flood-filling algorithm (`skimage.segmentation.flood`) to identify brain mask.
  * `flood_tolerance`:  Default is `1000`. Tolerance setting for flood-filling algorithm (`skimage.segmentation.flood`) to identify brain mask.
 
-**Additional parameters are added within `run_pipeline.py` during runtime:**
+**Additional parameters are added within `run_pipeline.py` at runtime:**
 
  * `sync_csv_col` is set to `"stim"` if this is a tactile stimulation trial; otherwise `"button"`. `"stim"` is the channel in the sync file indicating when the vibration motor is on. `"button"` is the channel in the sync file indicating when the user pushed the button to indicate that the  injection is happening.
- * `downsample_factor` is set to `2` this is a tactile stim trial; otherwise `8`. For tactile, 2 was chosen because tactile stim on times are only ~20 frames long, so we don't want to downsample so much that we lose the stim. For injection trials, 8 was chosen bc it is approximately the breathing rate of the animal.
+ * `downsample_factor` is set to `2` if this is a tactile stim trial; otherwise `8`. For tactile trials, 2 was chosen because tactile stimulus on times are only ~20 frames long, so we don't want to downsample so much that we lose the stimulus window. For injection trials, 8 was chosen because it is approximately the breathing rate of the animal.
  * `secs_before_stim` is set to 0 if this is a tactile stim trial; otherwise `60`. For tactile, process the whole recording. For injections, process starting at 60 s (1 min) before injection to avoid artifacts.
 
-Whether the current trial is a tactile stim trial or an injection trial is determined within `run_pipeline.py` based on the trial name. Tactile stimulation trials are typically 5 mins long and have `"_5min_"` in the trial name. Injection trials are typically 15 or 30 mins long.
+Whether the current trial is a tactile stim trial or an injection trial is determined within `run_pipeline.py` based on the trial name. Tactile stimulation trials are typically 5 minutes long and have `"_5min_"` in the trial name. Injection trials are typically 15 or 30 minutes long.
 
 ## Scripts
 
@@ -145,7 +145,7 @@ python src/neuroprocessing/scripts/{script.py} --help
 
 ### Image processing pipeline
 
-To process raw imaging data, use `src/neuroprocessing/scripts/run_pipeline.py`. The script includes steps for preprocessing (downsampling, motion correction) and processing (segmentation, bleach correction). For example, to analyze all experiments from a single day, run:
+To process raw imaging data, use `src/neuroprocessing/scripts/run_pipeline.py`. The script includes steps for preprocessing (downsampling and motion correction) and processing (segmentation and bleach correction). For example, to analyze all experiments from a single day, run:
 
 ```bash
 conda activate neuroimaging
