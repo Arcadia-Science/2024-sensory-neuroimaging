@@ -148,8 +148,6 @@ def plot_montage_and_trace_pairs(
         f0 = f[t0 - 10 : t0].mean()
         dff = (f - f0) / f0
 
-        dff = dff - np.polyval(np.polyfit(t, dff, 1), t)
-
         ax[1].plot(t, dff, color=color["line"])
 
         # shade approximate injection time

@@ -1,7 +1,7 @@
 [project]
 name = "neuroprocessing"
-description = "Data analysis scripts and notebooks for the translation pilot `Brain imaging of puritogen responses`"
-version = "0.2"
+description = "Image processing pipeline and figure generation for the pub `Label-free neuroimaging in mice captures sensory activity in response to tactile stimuli and acute pain, but not itch`"
+version = "1.0"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { file = "LICENSE" }
