@@ -75,9 +75,11 @@ Paths to raw and processed data on the user's computer should be set in the conf
 This template is also located in `config/default_template.json`. Rename it to `default.json` and add the real data paths to run the scripts in this repository.
 
 
-### Dataset
+### Datasets
 
 The raw and processed experimental data are stored in a [Zenodo repository](https://doi.org/10.5281/zenodo.11585535).
+
+Note: the raw data is split into five zipfiles. These five zipfiles correspond to the five subdirectories in the single zipfile of processed data. These subdirectories have names that are timestamps of the form `YYYY-MM-DD`. The corresponding zipfiles of raw data have names of the form `pub-data-raw-YYYY-MM-DD.zip`. To follow the steps below, it will be necessary to reorganize the raw data into the same directory structure as the processed data by extracting each of the five zipfiles to directories with names of the form `YYYY-MM-DD` and then moving them into a single `raw-data/` directory.
 
 ### Experiment file structure
 
