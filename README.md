@@ -79,7 +79,14 @@ This template is also located in `config/default_template.json`. Rename it to `d
 
 The raw and processed experimental data are stored in a [Zenodo repository](https://doi.org/10.5281/zenodo.11585535).
 
-Note: the raw data is split into five zipfiles. These five zipfiles correspond to the five subdirectories in the single zipfile of processed data. These subdirectories have names that are timestamps of the form `YYYY-MM-DD`. The corresponding zipfiles of raw data have names of the form `pub-data-raw-YYYY-MM-DD.zip`. To follow the steps below, it will be necessary to reorganize the raw data into the same directory structure as the processed data by extracting each of the five zipfiles to directories with names of the form `YYYY-MM-DD` and then moving them into a single `raw-data/` directory.
+The raw data is divided into five zip files, each corresponding to a subdirectory in the zip file of processed data. These subdirectories are named with dates in the YYYY-MM-DD format. The raw data zip files follow the naming convention `pub-data-raw-YYYY-MM-DD.zip`.
+
+To reorganize the raw data to match the directory structure of the processed data, follow these steps:
+
+1. Extract each of the five raw data zip files into directories named according to their timestamps (e.g., YYYY-MM-DD).
+1. Move all these timestamped directories into a single raw-data/ directory.
+
+By following these steps, the raw data will be structured in the same way as the processed data, facilitating further analysis and comparison.
 
 ### Experiment file structure
 
