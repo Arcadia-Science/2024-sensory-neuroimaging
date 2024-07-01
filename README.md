@@ -84,7 +84,7 @@ The raw data is divided into five zip files, each corresponding to a subdirector
 To reorganize the raw data to match the directory structure of the processed data, follow these steps:
 
 1. Extract each of the five raw data zip files into directories named according to their timestamps (e.g., YYYY-MM-DD).
-1. Move all these timestamped directories into a single raw-data/ directory.
+1. Move all these timestamped directories into a single `raw-data/` directory.
 
 By following these steps, the raw data will be structured in the same way as the processed data, facilitating further analysis and comparison.
 
