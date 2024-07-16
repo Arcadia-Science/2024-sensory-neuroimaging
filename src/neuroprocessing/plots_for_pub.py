@@ -144,6 +144,9 @@ def plot_montage_and_trace_pairs(
 
         # df/f plot
         t, f = trial.load_trace(roi=trace_roi)
+        
+        # F0 (baseline fluorescence) is the average of the first 10 frames in the recording (<10 s)
+        # Any number here should be OK as long as the frames occur before the injection
         f0 = f[:10].mean()
         dff = (f - f0) / f0
 
