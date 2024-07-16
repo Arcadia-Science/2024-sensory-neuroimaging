@@ -144,8 +144,7 @@ def plot_montage_and_trace_pairs(
 
         # df/f plot
         t, f = trial.load_trace(roi=trace_roi)
-        t0 = np.where(t >= 0)[0][0]
-        f0 = f[t0 - 10 : t0].mean()
+        f0 = f[:10].mean()
         dff = (f - f0) / f0
 
         ax[1].plot(t, dff, color=color["line"])
@@ -188,7 +187,7 @@ def plot_montage_and_trace_pairs(
     )
 
     if tiff_out is not None:
-        # rescale to max and min of montages in montage_stacks
+        # rescale stacks to max and min intensity in montage_stacks
         montage_stacks_np = np.vstack(montage_stacks)
         min_val, max_val = montage_stacks_np.min(), montage_stacks_np.max()
         montage_stacks = [
