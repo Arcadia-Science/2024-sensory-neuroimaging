@@ -6,7 +6,7 @@
 
 ## Overview
 
-This repo contains microscope control software, data analysis scripts, and notebooks for the translation pilot ["Brain imaging of pruritogen responses"](https://doi.org/10.57844/arcadia-b963-15ac). This repository includes all the code necessary to reproduce the figures and results from the pub.
+This repo contains microscope control software, data analysis scripts, and notebooks for the Arcadia pub ["Label-free neuroimaging in mice captures sensory activity in response to tactile stimuli and acute pain"](https://doi.org/10.57844/arcadia-b963-15ac). This repository includes all the code necessary to reproduce the figures and results from the pub.
 
 ## Installation and Setup
 
