@@ -74,7 +74,8 @@ def execute_pipeline(date, trial, params_file, reanalyze):
         params["downsample_factor"] = 2 if is_tactile_stim_trial else 8
         params["secs_before_stim"] = 0 if is_tactile_stim_trial else 60
 
-        if reanalyze or not (trial_dir / "params.json").exists():
+        processed_trial_dir = Path(config["processed_data_dir"]) / date / trial_dir.name
+        if reanalyze or not (processed_trial_dir / "params.json").exists():
             print(f"Processing {trial_dir.name}...")
             preprocess_and_process_trial(date, trial_dir.name, params)
         else:

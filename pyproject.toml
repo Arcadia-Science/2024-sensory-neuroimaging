@@ -5,6 +5,16 @@ version = "1.0"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { file = "LICENSE" }
+dependencies = [
+  "click",
+  "matplotlib",
+  "natsort",
+  "numpy",
+  "pandas",
+  "scikit-image",
+  "scipy",
+  "tqdm",
+]
 authors = [
   { name = "Ryan Lane", email = "ryan.lane@arcadiascience.com" },
   { name = "Ilya Kolb", email = "ilya.kolb@arcadiascience.com" },
