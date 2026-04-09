@@ -122,7 +122,7 @@ done
 
 1. Download the [dataset from Zenodo](#datasets) or re-generate it using the steps above. If downloaded, unzip the processed data file `pub-data-processed.zip` to a directory on your computer.
 2. [Update the path configuration file](#path-configuration-file) to point to the processed data directory.
-3. Navigate to `notebooks` and run `generate_figures.ipynb`. Static figures will be displayed inline in the notebook. Animations of brain activity will be saved in `notebooks/figs/` as TIFFs.
+3. Navigate to `notebooks` and run `generate_figures.ipynb`. Static figures will be displayed inline in the notebook. Animations of brain activity will be saved in `notebooks/figs/` as TIFFs. *Note: the fonts used in the figures are proprietary. All text will render as default system fonts instead.*
 
 ### Pipeline parameters
 
