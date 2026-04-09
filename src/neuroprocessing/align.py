@@ -139,7 +139,7 @@ class StackAligner:
             "stop_sample_num": np.inf,
             "stop_residuals_sum": 0,
             "stop_probability": 1,
-            "rng": np.random.default_rng(),
+            "rng": 42, # default seed for reproducibility
             "initial_inliers": None,
         }
 
