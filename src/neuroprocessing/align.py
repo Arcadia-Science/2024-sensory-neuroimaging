@@ -139,7 +139,7 @@ class StackAligner:
             "stop_sample_num": np.inf,
             "stop_residuals_sum": 0,
             "stop_probability": 1,
-            "rng": None,
+            "rng": 42, # default seed for reproducibility
             "initial_inliers": None,
         }
 
@@ -364,7 +364,6 @@ class StackAligner:
             # run RANSAC
             model, inliers = ski.measure.ransac((coords_i, coords_j), **self.RANSAC_parameters)
 
-            # TODO: properly deal with cases where RANSAC fails to find a model
             if model is None:
                 msg = (
                     f"No inliers found for {len(coords_i)} potential "
@@ -436,7 +435,6 @@ class StackAligner:
 
         if transformation_data:
             # output a csv of the form
-            # TODO: put table here depicting output
             tgt = export_dir / "alignment_data.csv"
             with open(tgt, "w") as _file:
                 csvwriter = csv.writer(_file)

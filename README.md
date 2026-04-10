@@ -13,14 +13,14 @@ This repo contains microscope control software, data analysis scripts, and noteb
 This repository uses conda to manage software environments and installations.
 
 ```bash
-conda env create -y --name neuroimaging-analysis --file envs/all-dependencies.yml
+conda env create -y --name neuroimaging-analysis --file envs/direct-dependencies.yml
 conda activate neuroimaging-analysis
 ```
 
-If conda cannot solve this environment, try installing only the direct dependencies:
+On macOS, you can alternatively use the fully-pinned environment for exact reproducibility:
 
 ```bash
-conda env create -y --name neuroimaging-analysis --file envs/direct-dependencies.yml
+conda env create -y --name neuroimaging-analysis --file envs/all-dependencies-osx.yml
 ```
 
 To install the `neuroimaging` package in development mode, run:
@@ -72,7 +72,7 @@ Paths to raw and processed data on the user's computer should be set in the conf
 }
 ```
 
-This template is also located in `config/default_template.json`. Rename it to `default.json` and add the real data paths to run the scripts in this repository.
+This template is also located in `config/default.json`. Add the real data paths to run the scripts in this repository.
 
 
 ### Datasets
@@ -100,15 +100,15 @@ By following these steps, the raw data will be structured in the same way as the
 
 ### Processing raw imaging data
 
-1. Download the [dataset from Zenodo](#dataset). Note: the dataset is large (~80 Gb).
-2. Unzip the raw data file `pub-data-processed.zip` to a directory on your computer.
+1. Download the [dataset from Zenodo](#datasets). Note: the dataset is large (~80 Gb).
+2. Unzip the raw data zip files `pub-data-raw-YYYY-MM-DD.zip` to a directory on your computer.
 3. Create a new empty directory for the processed data.
 4. [Update the path configuration file](#path-configuration-file) to point to the raw and processed data directories.
-5. Run the pipeline for all experiment dates (**note: this may take >5 hours if running locally**):
+5. Run the pipeline for all (or a subset of) experiment dates (**note: this may take >5 hours if running locally**):
 
 ```bash
 
-conda activate neuroimaging
+conda activate neuroimaging-analysis
 for date in 2024-02-21 2024-02-29 2024-03-06 2024-03-18 2024-03-19; do
     python src/neuroprocessing/scripts/run_pipeline.py \
         --date $date \
@@ -120,9 +120,9 @@ done
 
 ### Reproducing figures from the pub
 
-1. Download the [dataset from Zenodo](#dataset) or re-generate it using the steps above. If downloaded, unzip the processed data file `pub-data-processed.zip` to a directory on your computer.
+1. Download the [dataset from Zenodo](#datasets) or re-generate it using the steps above. If downloaded, unzip the processed data file `pub-data-processed.zip` to a directory on your computer.
 2. [Update the path configuration file](#path-configuration-file) to point to the processed data directory.
-3. Run `notebooks/generate_figures.ipynb`. Static figures will be displayed inline in the notebook. Animations of brain activity will be saved in `notebooks/figs/` as TIFFs.
+3. Navigate to `notebooks` and run `generate_figures.ipynb`. Static figures will be displayed inline in the notebook. Animations of brain activity will be saved in `notebooks/figs/` as TIFFs. *Note: the fonts used in the figures are proprietary. All text will render as default system fonts instead.*
 
 ### Pipeline parameters
 
@@ -149,15 +149,15 @@ Whether the current trial is a tactile stim trial or an injection trial is deter
 To process raw imaging data, use `src/neuroprocessing/scripts/run_pipeline.py`. The script includes steps for preprocessing (downsampling and motion correction) and processing (segmentation and bleach correction). For example, to analyze all experiments from a single day, run:
 
 ```bash
-conda activate neuroimaging
-python src/neuroprocessing/scripts/run_analysis.py \
+conda activate neuroimaging-analysis
+python src/neuroprocessing/scripts/run_pipeline.py \
     --date 2024-02-21 \
     --params_file pipeline_params/default_pipeline_params.json
 ```
 
 To analyze a single trial in a day, run:
 ```bash
-python src/neuroprocessing/scripts/run_analysis.py \
+python src/neuroprocessing/scripts/run_pipeline.py \
     --date 2024-02-21 \
     --params_file pipeline_params/default_pipeline_params.json \
     --trial Zyla_5min_LFLstim_2son4soff_1pt25pctISO_deeper_1
